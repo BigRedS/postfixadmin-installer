@@ -1,0 +1,21 @@
+postfixadmin-installer
+======================
+
+Script to automate the installation and configuration of a postfixadmin
+system on a debian-alike OS (it uses apt-get).
+
+You will need a working Postfix and MySQL server (and ideally knowledge of
+the root password for the latter), and LWP::Simple (which is libwww-perl in
+dpkg). 
+
+Installation
+------------
+
+Just download and run:
+
+	# wget https://raw.github.com/BigRedS/postfixadmin-installer/master/postfixadmin-installer --no-check-certificate
+	# perl ./postfixadmin-installer
+
+You will be prompted for MySQL credentials if the debian-sys-maint ones can't be 
+found or are found to not work.
+
