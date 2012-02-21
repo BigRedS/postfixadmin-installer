@@ -303,7 +303,8 @@ sub sasl(){
 			$line = "START=yes\n";
 		}
 		if(/^OPTIONS/){
-			$line = "OPTIONS=\"-c -m /var/spool/postfix/var/run/saslauthd\""
+#			$line = "OPTIONS=\"-c -m /var/spool/postfix/var/run/saslauthd\""
+			$line = "OPTIONS=\"-c -m /var/run/saslauthd\"";
 		}
 		print $out $line;
 	}
