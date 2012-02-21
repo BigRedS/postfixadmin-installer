@@ -57,11 +57,11 @@ my $postfixMasterDotCfBackupFile = "/etc/postfix/.bak_${date}_master.cf";
 my $saslauthdFile = "/etc/default/saslauthd";
 my $saslauthdBackupFile = "/etc/default/.bak_${date}_saslauthd";
 
-# This is the dir under which the mailboxes are created, as "/var/mail/<email-address>/Maildir
+# This is the dir under which the mailboxes are created, as "/var/mail/domain/<email-address>/Maildir
 my $mailboxDir = "/var/vmail/";
 my $mailLocation = $mailboxDir."/%d/%u";
 
-# This is the user that postfix and dovecot (and whatever else) will use to interfer with the db. 
+# This is the user that postfix and dovecot (and whatever else) will use to interfere with the db. 
 my $dbuser = "vmail";
 my $dbhost = "localhost";
 my $dbname = "vmail";
@@ -72,7 +72,7 @@ chomp $dbpass;
 # jobs as this user, so the contents of $mailboxDir must be owned by it
 my $unixUser = "vmail";
 
-# Used just to give a link to postfixadmin
+# Only used to provide a link to postfixadmin at the end of the script, nothing else depends on this.
 my $fqdn = `hostname -f`;
 chomp $fqdn;
 
@@ -80,8 +80,9 @@ chomp $fqdn;
 # Any that do need adding below
 my $packages = "dovecot-common dovecot-imapd dovecot-pop3d postfix-mysql libapache2-mod-php5 php5-mysql php5-imap libsasl2-2 libsasl2-modules sasl2-bin";
 
-# postfix and mysql-server both require human-interaction to install, so we insist it's done 
-# before this script runs. There's probably a more elegant way of doing this.
+# postfix and mysql-server both require human-interaction to install, so we insist it's done before 
+# this script runs. There's probably a more elegant way of doing this. This also forces (or at least 
+# encourages) removal of the old mailer first.
 my @installed = grep(/^ii/,`dpkg -l postfix mysql-server`);
 unless ($#installed >= 1){
 	print STDERR "I need both the postfix and mysql-server packages installed and configured before I can begin.\n";
@@ -92,7 +93,6 @@ my $ignoreBackupFailures = 0;
 
 # For files we've had problems with:
 my @errors;
-
 
 eval{
 	require LWP::Simple;
@@ -242,6 +242,9 @@ first_valid_uid = $uid
 # Allow people to use plaintext auth even when TLS/SSL is available (you
 # might not want this but it is handy when testing):
 disable_plaintext_auth = no
+# Uncomment this to get nice and verbose messages about authentication
+# problems:
+# auth_debug=yes
 
 protocol imap {
 }
