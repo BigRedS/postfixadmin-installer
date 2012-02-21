@@ -157,12 +157,6 @@ sub mainDotCf(){
 
 # # # Begin insertion by postfixdovecotmysql script $date # # # 
 
-smtpd_tls_cert_file=/etc/ssl/certs/mail-cert.pem
-smtpd_tls_key_file=/etc/ssl/private/mail-key.pem
-smtpd_use_tls=yes
-smtpd_tls_session_cache_database = btree:\${queue_directory}/smtpd_scache
-smtp_tls_session_cache_database = btree:\${queue_directory}/smtp_scache
-
 virtual_mailbox_domains = proxy:mysql:$postfixDir/mysql_virtual_domains_maps.cf
 virtual_alias_maps =
    proxy:mysql:$postfixDir/mysql_virtual_alias_maps.cf,
@@ -174,20 +168,6 @@ virtual_mailbox_maps =
 virtual_mailbox_base = $mailboxDir
 virtual_uid_maps = static:$uid
 virtual_gid_maps = static:$gid
-
-
-# TLS config
-#smtp_use_tls = yes
-#smtpd_use_tls = yes
-#smtp_tls_note_starttls_offer = yes
-#smtpd_tls_key_file = /etc/postfix/ssl/smtpd.pem
-#smtpd_tls_cert_file = /etc/postfix/ssl/smtpd.pem
-#smtpd_tls_CAfile = /etc/postfix/ssl/smtpd.pem
-#smtpd_tls_loglevel = 1
-#smtpd_tls_received_header = yes
-#smtpd_tls_session_cache_timeout = 3600s
-#tls_random_source = dev:/dev/urandom
-#smtpd_tls_auth_only = no 
 
 smtpd_sasl_type = dovecot
 smtpd_sasl_path = private/auth
