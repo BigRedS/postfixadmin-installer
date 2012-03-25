@@ -5,7 +5,8 @@
 # Installs and nearly configures a Postfix/Dovecot/MySQL/Postfixadmin mailer on a Debianish system.
 
 # You should be able to just drop it in and run it. If it's missing anything (it only needs 
-# LWP::Simple and for Postfix and MySQL to be configured) it tells you how to get it.
+# LWP::Simple and for Postfix and MySQL to be configured enough to be running) it tells you how to 
+# get it.
 # Tries to get the MySQL debian-sys-maint credentials and use them. Currently, I'm not quite 
 # sure what it does if it doesn't get them :)
 
@@ -27,14 +28,14 @@ my ($y,$m,$d)=(localtime(time))[5,4,3];
 my $date = $y + 1900 ."-".sprintf("%02d",$m + 1)."-$d";
 
 # These are the credentials we use to log in to MySQL to create the db and the user. For the details
-# of the user we create, see $db* lower down
+# of the users we create, see $db* lower down.
 # If *all three* are set to undef, then we'll parse /etc/mysql/debian.cnf to get these (and if that doesn't
-# work resort to `-u root -h localhost` and prompting for the password ). If only the password is set to 
-# undef, then we'll prompt for the root password later
+# work resort to `-u root -h localhost` and prompting for the password ). 
+# If 'host' is set to undef we'll use localhost.
+# If the password is set to undef, then we'll prompt for the root password later
 my $mysqlhost = undef;
 my $mysqluser = undef;
 my $mysqlpass = undef;
-
 
 # There's a bunch of faffing with files. Every file we edit is backed up first, unless it's 
 # (almost) guaranteed to be either not there already or not wanted (like postfix's mysql config).
@@ -103,6 +104,7 @@ if($@){
 	print "(I'll also need postfix and mysql-server, so you might want to check those now, too)\n";
 	exit 1;
 }
+
 #### Postfixadmin-specific config  # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
 
 my $postfixadminURL = "http://downloads.sourceforge.net/project/postfixadmin/postfixadmin/postfixadmin-2.3.3/postfixadmin-2.3.3.tar.gz?r=http%3A%2F%2Fsourceforge.net%2Fprojects%2Fpostfixadmin%2F&ts=1303232343&use_mirror=ignum";
@@ -124,7 +126,8 @@ EOF
 #### Postfix-specific config # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
 
 # We need to create a series of files in /etc/postfix (or $postfixDir) for Postfix to use 
-# essentially as hash files. The credentials need to be the same in all, so this will be
+# to get the MySQL credentials, and to find what queires to run to work out what to do with
+# mail addressed to any given address. The credentials need to be the same in all, so this will be
 # put at the top of each:
 sub postfixCredentials() {
 	return <<EOF;
@@ -136,7 +139,7 @@ EOF
 }
 
 # This is a hash of the files we create in /etc/postfix (or $postfixDir). The key is the 
-# filename and the value is the query line. The files are a concatenation of the 
+# filename and the value is the query line. The resulting files are a concatenation of the 
 # output of postfixCredentials() above and the relevant value from here.
 my %postfixFiles = (
 	'mysql_virtual_alias_domain_catchall_maps'	=>  'query = SELECT goto FROM alias,alias_domain WHERE alias_domain.alias_domain = \'%d\' and alias.address = CONCAT(\'@\', alias_domain.target_domain) AND alias.active = 1 AND alias_domain.active=\'1\'',
@@ -147,7 +150,7 @@ my %postfixFiles = (
 	'mysql_virtual_mailbox_maps'			=>  'query = SELECT maildir FROM mailbox WHERE username=\'%s\' AND active = \'1\'',
 );
 
-# This is the config bits that need to be appended to postfix's main.cf. Handily, postfix
+# These are the config bits that need to be appended to postfix's main.cf. Handily, postfix
 # is quite happy with repeated config directives, just sticking with the last value it
 # reads so it doesn't matter if we repeat things.
 sub mainDotCf(){
@@ -194,10 +197,10 @@ EOF
 #### Dovecot-specific config # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
 
 # Dovecot can use a separate file for MySQL permissions, which is generally recommended. This
-# is that:
+# is that file:
 sub dovecotDotSql() {
-my $uid = shift;
-return <<EOF;
+	my $uid = shift;
+	return <<EOF;
 connect = host=$dbhost dbname=$dbname user=$dbuser password=$dbpass
 driver = mysql
 default_pass_scheme = MD5-CRYPT
@@ -293,8 +296,19 @@ sub sasl(){
 	print "done\n";
 }
 
-### The bit where we do stuff # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
 
+### # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
+
+### Here ends the config  # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
+
+### # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
+
+# This is code all the way down, now. You shouldn't need or want to change any of this (and, if
+# you do, please tell me so I can fix/amend it here, too!)
+
+
+
+# Herein, the first 'print' of any stanza should serve as a reasonable comment on what it's doing
 print "Guessing MySQL credentials...";
 if ( (!$mysqlhost || !$mysqluser )){
 	($mysqlhost, $mysqluser, $mysqlpass) = &getMySQLCredentials();
@@ -310,9 +324,8 @@ if ( (!$mysqlhost || !$mysqluser )){
 }
 
 
-# Herein, the first 'print' of any stanza should serve as a reasonable comment on what it's doing
-
 print "Installing packages (this can take a few minutes)... ";
+
 `apt-get -y install $packages`;
 print " done\n";
 
@@ -342,6 +355,7 @@ if ( getpwnam($unixUser) =~ /(\d+)/){
 	}
 }
 
+
 print "Creating mailbox dir ($mailboxDir)...";
 my $cmd = "mkdir -p $mailboxDir && chmod 770 $mailboxDir && chown -R $unixUser:$unixUser $mailboxDir";
 if(system($cmd) != 0){
@@ -350,6 +364,7 @@ if(system($cmd) != 0){
 }else{
 	print " done\n";
 }
+
 
 # Creating postfix MySQL files:
 while ( my($file, $query) = each %postfixFiles ){
@@ -496,7 +511,6 @@ if ($write == 1){
 	print "Configuring saslauthd...";
 	&sasl();
 }	
-#print " done\n";
 
 
 
@@ -529,12 +543,6 @@ print "Getting postfixadmin...";
 getstore($postfixadminURL, "/var/www/postfixadmin.tar.gz");
 print " done\n";
 
-#f ( -e $postfixadminDir ){
-#	my $dest = $postfixadminDir.$date;
-#	print "Moving $postfixadminDir to $dest";
-#	move ($postfixadminDir, $dest);
-#	print " done\n";
-#}
 
 print "Extracting postfixadmin...";
 if ( -d $postfixadminDir){
@@ -619,6 +627,10 @@ print "\n\n";
 
 print $postfixadminManual;
 exit 0;
+
+
+
+### Utility Subs ###
 
 
 sub getMySQLCredentials(){
