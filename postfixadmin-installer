@@ -37,6 +37,10 @@ my $mysqlhost = undef;
 my $mysqluser = undef;
 my $mysqlpass = undef;
 
+# This is used as the from domain for the vacation auto-responder. You might want to change it:
+my $fqdn = `hostname -f`;
+chomp $fqdn;
+
 # There's a bunch of faffing with files. Every file we edit is backed up first, unless it's 
 # (almost) guaranteed to be either not there already or not wanted (like postfix's mysql config).
 
@@ -73,13 +77,18 @@ chomp $dbpass;
 # jobs as this user, so the contents of $mailboxDir must be owned by it
 my $unixUser = "vmail";
 
-# Only used to provide a link to postfixadmin at the end of the script, nothing else depends on this.
-my $fqdn = `hostname -f`;
-chomp $fqdn;
+# We also need a user and group for the vacation message management. Again, we simply create a group
+# of the same name as the user. 
+my $vacationUser = "vacation";
+my $vacationSpool = "/var/spool/vacation";
+my $vacationDomain = "autoreply.".$fqdn;
+my $vacationMasterDotCf = "vacation  unix  -\tn\tn\t-\t-\tpipe\n";
+$vacationMasterDotCf .= '  flags=Rq user=vacation argv=/var/spool/vacation/vacation.pl -f ${sender} ${recipient}';
+
 
 # Packages we depend upon. Remember that the script can't cope with installers that need interaction. 
 # Any that do need adding below
-my $packages = "dovecot-common dovecot-imapd dovecot-pop3d postfix-mysql libapache2-mod-php5 php5-mysql php5-imap libsasl2-2 libsasl2-modules sasl2-bin";
+my $packages = "dovecot-common dovecot-imapd dovecot-pop3d postfix-mysql libapache2-mod-php5 php5-mysql php5-imap libsasl2-2 libsasl2-modules sasl2-binlibmail-sender-perl libdbd-mysql-perl libemail-valid-perl libmime-perl liblog-log4perl-perl liblog-dispatch-perl libgetopt-argvfile-perl libmime-charset-perl libmime-encwords-perl";
 
 # postfix and mysql-server both require human-interaction to install, so we insist it's done before 
 # this script runs. There's probably a more elegant way of doing this. This also forces (or at least 
@@ -138,6 +147,9 @@ dbname = $dbname
 EOF
 }
 
+# For the vacation script to work, Postfix uses a transport maps file. This is it:
+my $postfixTransportMapsFile = "/etc/postfix/transport";
+
 # This is a hash of the files we create in /etc/postfix (or $postfixDir). The key is the 
 # filename and the value is the query line. The resulting files are a concatenation of the 
 # output of postfixCredentials() above and the relevant value from here.
@@ -171,6 +183,8 @@ virtual_mailbox_maps =
 virtual_mailbox_base = $mailboxDir
 virtual_uid_maps = static:$uid
 virtual_gid_maps = static:$gid
+
+transport_maps = $postfixTransportMapsFile
 
 smtpd_sasl_type = dovecot
 smtpd_sasl_path = private/auth
@@ -355,6 +369,16 @@ if ( getpwnam($unixUser) =~ /(\d+)/){
 	}
 }
 
+print "Creating user $vacationUser...";
+my $cmd = "useradd -r -U -d $vacationSpool -m -s /sbin/nologin $vacationUser";
+if(system($cmd) != 0){
+	print "FAIL\n";
+	print STDERR"\t$cmd\n\texited non-sero\n";
+}else{
+	print " done\n";
+}
+
+
 
 print "Creating mailbox dir ($mailboxDir)...";
 my $cmd = "mkdir -p $mailboxDir && chmod 770 $mailboxDir && chown -R $unixUser:$unixUser $mailboxDir";
@@ -386,6 +410,23 @@ while ( my($file, $query) = each %postfixFiles ){
 	}
 }
 
+#Creating postfix transport maps file
+print "Creating tranport maps file $postfixTransportMapsFile...";
+my $f;
+eval {open($f, ">", "/etc/postfix/transport") or die "Error opening transport file \"$postfixTransportMapsFile\" : $!";};
+if ($@){
+	print $@;
+	push(@errors,$postfixTransportMapsFile);
+}else{
+	print $f "$vacationDomain $vacationUser\n";
+	close($f);
+	my $cmd = "postmap /etc/postfix/transport";
+	if(system($cmd) != 0){
+		print " FAIL: error running postmap command on \"$postfixTransportMapsFile\"";
+	}else{
+		print " done\n";
+	}
+}
 
 
 # dovecot-sql.conf:
@@ -489,6 +530,7 @@ if ($write == 1){
 		print STDERR"\tcouldn't open $postfixMasterDotCfFile for appending";
 	}else{
 		print $f &masterDotCf;
+		print $f $vacationMasterDotCf;
 		close($f);
 		print " done\n";
 	}
@@ -558,6 +600,7 @@ if ( -d $postfixadminDir){
 	print " done\n";
 }
 
+
 print "Configuring postfixadmin...";
 open (my $f, "<", $postfixadminDir."/config.inc.php") or die "Error opening postifixadmin's config.inc.php";
 my @config = <$f>;
@@ -567,23 +610,83 @@ foreach(@config){
 	my $line = $_;
 	if ($line =~ /^\$CONF\[\'configured/){
 		$line = "\$CONF['configured'] = true;\n";
+
 	}elsif ($line =~ /^\$CONF\[\'database_user/){
 		$line = "\$CONF[\'database_user\'] = \'$dbuser\';\n";
+
 	}elsif ($line =~ /^\$CONF\[\'database_password/){
 		$line = "\$CONF[\'database_password\'] = \'$dbpass\';\n";
+
 	}elsif ($line =~ /^\$CONF\[\'database_name/){
 		$line = "\$CONF[\'database_name\'] = \'$dbname\';\n";
+
 	}elsif($line =~ /^\$CONF\[\'setup_password/){
 		$line =  "\$CONF[\'setup_password\'] = \'$postfixadminPasswordHash\';\n";
-	}
 
+	}elsif($line =~ /^\$CONF\[\'vacation/){
+		$line = "\$CONF[\'vacation'] = \'YES\';\n";
+
+	}elsif($line =~ /^\$CONF\[\'vacation_domain/){
+		$line = "\$CONF[\'vacation_domain\'] = \'$vacationDomain\';\n";
+	}
 	push(@newconfig, $line);
 }
-
 open (my $f, ">", $postfixadminDir."/config.inc.php") or die "Error opening postfixadmin's config.inc.php for writing";
 print $f join("", @newconfig);
 close($f);
 print " done\n";
+
+
+print "Copying vacation script into place...";
+$cmd = "cp /var/www/postfixadmin/VIRTUAL_VACATION/vacation.pl $vacationSpool";
+if (system($cmd) != 0){
+	print " FAIL\n";
+	print STDERR "\tError copying /var/www/postfixadmin/VIRTUAL_VACATION/vacation.pl to $vacationSpool : $!\n";
+}else{
+	print " done\n";
+}
+
+
+print "Setting permissions on vacation script...";
+$cmd = "chown -R vacation:vacation $vacationSpool && chmod -R 700 $vacationSpool";
+if (system($cmd) != 0){
+	print " FAIL\n";
+	print STDERR "Error setting permissions on vacation spool at $vacationSpool : $!\n";
+}else{
+	print " done\n";
+}
+
+print "Configuring vacation script...";
+my $script = $vacationSpool."/vacation.pl";
+open(my $f, "<", $script);
+my @config = <$f>;
+close($f);
+my @newconfig;
+foreach my $line (@config){
+	if ($line =~ /our \$db_type =/){
+		$line = "our \$db_type = 'mysql';";
+	}elsif($line =~ /our \$db_username/){
+		$line = "our \$db_username = \'$dbuser\';\n";
+
+	}elsif($line =~ /our \$db_password/){
+		$line = "our \$db_password = \'$dbpass\';\n";
+
+	}elsif($line =~ /our \$db_name/){
+		$line = "our \$db_name = \'$dbname\';\n";
+
+	}elsif($line =~ /our \$vacation_domain/){
+		$line = "our \$vacation_domain=\'$vacationDomain\';\n";
+	}
+	push(@newconfig,$line);
+}
+open(my $f, ">", $script) or die "Error opening vacation script \"$script\" for writing : $!\n";
+print $f join("", @newconfig);
+close($f);
+print " done\n";
+
+
+
+
 
 print "\n\n";
 print "\tRESTARTING SERVICES\n";
