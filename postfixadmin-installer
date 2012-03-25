@@ -623,7 +623,7 @@ foreach(@config){
 	}elsif($line =~ /^\$CONF\[\'setup_password/){
 		$line =  "\$CONF[\'setup_password\'] = \'$postfixadminPasswordHash\';\n";
 
-	}elsif($line =~ /^\$CONF\[\'vacation/){
+	}elsif($line =~ /^\$CONF\[\'vacation\'/){
 		$line = "\$CONF[\'vacation'] = \'YES\';\n";
 
 	}elsif($line =~ /^\$CONF\[\'vacation_domain/){
