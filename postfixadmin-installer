@@ -16,7 +16,7 @@
 ##Todo: cope with bad debian-sys-maint credentials
 ##Todo: test on Lucid and anything else both important and not Debian (??)
 
-#Depends: libwww-perl, mysql-server, postfix
+#Depends: libwww-perl, mysql-server, postfix, pwgen
 
 use strict;
 use File::Copy;
@@ -63,8 +63,8 @@ my $saslauthdFile = "/etc/default/saslauthd";
 my $saslauthdBackupFile = "/etc/default/.bak_${date}_saslauthd";
 
 # This is the dir under which the mailboxes are created, as "/var/mail/domain/<email-address>/Maildir
-my $mailboxDir = "/var/vmail/";
-my $mailLocation = $mailboxDir."/%d/%u";
+my $mailboxDir = "/var/lib/vmail";
+my $mailLocation = $mailboxDir."/%d/%n";
 
 # This is the user that postfix and dovecot (and whatever else) will use to interfere with the db. 
 my $dbuser = "vmail";
@@ -88,7 +88,7 @@ $vacationMasterDotCf .= '  flags=Rq user=vacation argv=/var/spool/vacation/vacat
 
 # Packages we depend upon. Remember that the script can't cope with installers that need interaction. 
 # Any that do need adding below
-my $packages = "dovecot-common dovecot-imapd dovecot-pop3d postfix-mysql libapache2-mod-php5 php5-mysql php5-imap libsasl2-2 libsasl2-modules sasl2-binlib mail-sender-perl libdbd-mysql-perl libemail-valid-perl libmime-perl liblog-log4perl-perl liblog-dispatch-perl libgetopt-argvfile-perl libmime-charset-perl libmime-encwords-perl";
+my $packages = "dovecot-common dovecot-imapd dovecot-pop3d postfix-mysql libapache2-mod-php5 php5-mysql php5-imap libsasl2-2 libsasl2-modules sasl2-bin libmail-sender-perl libdbd-mysql-perl libemail-valid-perl libmime-perl liblog-log4perl-perl liblog-dispatch-perl libgetopt-argvfile-perl libmime-charset-perl libmime-encwords-perl";
 
 # postfix and mysql-server both require human-interaction to install, so we insist it's done before 
 # this script runs. There's probably a more elegant way of doing this. This also forces (or at least 
@@ -116,7 +116,7 @@ if($@){
 
 #### Postfixadmin-specific config  # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
 
-my $postfixadminURL = "http://downloads.sourceforge.net/project/postfixadmin/postfixadmin/postfixadmin-2.3.3/postfixadmin-2.3.3.tar.gz?r=http%3A%2F%2Fsourceforge.net%2Fprojects%2Fpostfixadmin%2F&ts=1303232343&use_mirror=ignum";
+my $postfixadminURL = "http://downloads.sourceforge.net/project/postfixadmin/postfixadmin/postfixadmin-2.3.5/postfixadmin-2.3.5.tar.gz?r=http%3A%2F%2Fsourceforge.net%2Fprojects%2Fpostfixadmin%2F&ts=1303232343&use_mirror=ignum";
 my $postfixadminDir = "/var/www/postfixadmin";
 my $postfixadminPasswordHash = "0642ee71a7fce9b604697b60aaacef3e:d70d5bc659232de9f05fa758a24028604a8c30ae";
 my $postfixadminPasswordPlain = "password";
@@ -184,7 +184,7 @@ virtual_mailbox_base = $mailboxDir
 virtual_uid_maps = static:$uid
 virtual_gid_maps = static:$gid
 
-transport_maps = $postfixTransportMapsFile
+transport_maps = hash:$postfixTransportMapsFile
 
 smtpd_sasl_type = dovecot
 smtpd_sasl_path = private/auth
@@ -800,3 +800,22 @@ sub backup(){
 	}
 	return $return;
 }
+##!/bin/bash
+#
+### Postfixadmin Postinstall
+#
+#FQHOST=$(hostname -f)
+#perl -p -i -e "s/\[\'postfix_admin_url\'\]\ \=\ \'\'/\[\'postfix_admin_url\'\]\ \=\ \'${FQHOST}\'/" /var/www/postfixadmin/config.inc.php
+#perl -p -i -e "s/change-this-to-your.domain.tld/${FQHOST}/g" /var/www/postfixadmin/config.inc.php
+#perl -p -i -e "s/\[\'user_footer_link\'\]\ \=\ .*$/\[\'user_footer_link\'\]\ \=\ \"http\:\/\/${FQHOST}\/postfixadmin\/users\/main.php\"\;/" /var/www/postfixadmin/config.inc.php
+#perl -p -i -e "s/\[\'domain_path\'\]\ \=\ \'NO\'/\[\'domain_path\'\]\ \=\ \'YES\'/" /var/www/postfixadmin/config.inc.php
+#perl -p -i -e "s/\[\'domain_in_mailbox\'\]\ \=\ \'YES\'/\[\'domain_in_mailbox\'\]\ \=\ \'NO\'/" /var/www/postfixadmin/config.inc.php
+##!/bin/bash
+#
+### Postfixadmin Preinstall
+#
+#perl -p -i -e 's/deb\ http\:\/\/mirror.positive-internet.com\/debian\ squeeze\ main.*$/deb http:\/\/mirror.positive-internet.com\/debian squeeze main contrib non-free/' /etc/apt/sources.list
+#perl -p -i -e 's/deb\ http\:\/\/security.debian.org\/debian\ squeeze\/updates\ main.*$/deb http:\/\/security.debian.org\/debian squeeze main contrib non-free/' /etc/apt/sources.list
+#apt-get update
+#apt-get install libwww-perl pwgen postfix mysql-server
+#
