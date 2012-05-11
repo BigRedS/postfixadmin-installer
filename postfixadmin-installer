@@ -64,7 +64,8 @@ my $saslauthdBackupFile = "/etc/default/.bak_${date}_saslauthd";
 
 # This is the dir under which the mailboxes are created, as "/var/mail/domain/<email-address>/Maildir
 my $mailboxDir = "/var/lib/vmail";
-my $mailLocation = $mailboxDir."/%d/%n";
+#my $mailLocation = $mailboxDir."/%d/%n";
+my $mailLocation = $mailboxDir."/%u";
 
 # This is the user that postfix and dovecot (and whatever else) will use to interfere with the db. 
 my $dbuser = "vmail";
