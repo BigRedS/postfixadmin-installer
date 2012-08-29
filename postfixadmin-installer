@@ -64,8 +64,6 @@ my $saslauthdBackupFile = "/etc/default/.bak_${date}_saslauthd";
 
 # This is the dir under which the mailboxes are created, as "/var/mail/domain/<email-address>/Maildir
 my $mailboxDir = "/var/lib/vmail";
-#my $mailLocation = $mailboxDir."/%d/%n";
-my $mailLocation = $mailboxDir."/%u";
 
 # This is the user that postfix and dovecot (and whatever else) will use to interfere with the db. 
 my $dbuser = "vmail";
@@ -232,7 +230,7 @@ sub dovecotDotConf(){
 	return <<EOF;
 protocols = imap imaps pop3 pop3s
 log_timestamp = "%Y-%m-%d %H:%M:%S "
-mail_location = maildir:$mailLocation
+mail_location = maildir:/var/vmail/%d/%n
 mail_privileged_group = $unixUser
 # This should match that of the owner of the $mailboxDir hierarchy, and 
 # be the same as the one postfix uses.
@@ -631,17 +629,23 @@ foreach(@config){
 		$line =  "\$CONF[\'setup_password\'] = \'$postfixadminPasswordHash\';\n";
 
 	}elsif($line =~ /^\$CONF\[\'vacation\'/){
-		$line = "\$CONF[\'vacation'] = \'YES\';\n";
+		$line = "\$CONF[\'vacation\'] = \'YES\';\n";
 
-	}elsif($line =~ /^\$CONF\[\'vacation_domain/){
-		$line = "\$CONF[\'vacation_domain\'] = \'$vacationDomain\';\n";
+	}elsif($line =~ /^\$CONF\[\'domain_path\'/){
+		$line = "\$CONF[\'domain_path\'] = \'YES\';\n";
+
+	}elsif($line =~/^\$CONF\[\'domain_in_mailbox\'/){
+		$line = "\$CONF[\'domain_in_mailbox\'] = \'YES\';\n";
+
 	}
+
 	push(@newconfig, $line);
 }
 open (my $f, ">", $postfixadminDir."/config.inc.php") or die "Error opening postfixadmin's config.inc.php for writing";
 print $f join("", @newconfig);
 close($f);
 print " done\n";
+
 
 
 print "Copying vacation script into place...";
