@@ -16,7 +16,7 @@
 ##Todo: cope with bad debian-sys-maint credentials
 ##Todo: test on Lucid and anything else both important and not Debian (??)
 
-#Depends: libwww-perl, mysql-server, postfix, pwgen
+#Depends: libwww-perl, mysql-server, postfix
 
 use strict;
 use File::Copy;
@@ -81,7 +81,7 @@ my $mailboxDir = "/var/lib/vmail";
 my $dbuser = "vmail";
 my $dbhost = "localhost";
 my $dbname = "vmail";
-my $dbpass = `pwgen 25 1`;
+my $dbpass = createPassword(25);
 chomp $dbpass;
 
 #A glob matching the munin plugins we wish to enable:
