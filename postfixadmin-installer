@@ -21,6 +21,7 @@
 use strict;
 use File::Copy;
 use Cwd;
+use Digest::SHA qw/sha1_hex/;
 
 select(STDOUT);
 $|++;
@@ -124,8 +125,8 @@ if($@){
 
 my $postfixadminURL = "http://downloads.sourceforge.net/project/postfixadmin/postfixadmin/postfixadmin-2.3.5/postfixadmin-2.3.5.tar.gz?r=http%3A%2F%2Fsourceforge.net%2Fprojects%2Fpostfixadmin%2F&ts=1303232343&use_mirror=ignum";
 my $postfixadminDir = "/var/www/postfixadmin";
-my $postfixadminPasswordHash = "0642ee71a7fce9b604697b60aaacef3e:d70d5bc659232de9f05fa758a24028604a8c30ae";
-my $postfixadminPasswordPlain = "password";
+
+my ($postfixadminPasswordPlain, $postfixadminPasswordHash) = postfixadminCreatePassword();
 
 my $postfixadminManual = <<EOF;
 All done, now you can go and visit
@@ -765,6 +766,25 @@ exit 0;
 
 
 ### Utility Subs ###
+
+# Basically a clone of the related functions from pfa:
+sub postfixadminCreatePassword {
+        my $salt =  time(). '*' . rand(6000);
+        my $password = createPassword(14);
+        my $encryptedPassword = $salt.':'.sha1_hex($salt.':'.$password);
+        return $password, $encryptedPassword;
+}
+
+# Generates a simple password:
+sub createPassword {
+        my $length = shift;
+        my @chars = ("A".."Z", "a".."z", 1..9);
+        my $password;
+        for (my $i = 0; $i < $length; $i++){
+                $password.= $chars[rand($#chars - 1)];
+        }  
+        return $password;
+}
 
 
 sub getMySQLCredentials(){
