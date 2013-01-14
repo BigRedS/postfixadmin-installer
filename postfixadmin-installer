@@ -20,6 +20,7 @@
 
 use strict;
 use File::Copy;
+use Cwd;
 
 select(STDOUT);
 $|++;
@@ -71,6 +72,12 @@ my $dbhost = "localhost";
 my $dbname = "vmail";
 my $dbpass = `pwgen 25 1`;
 chomp $dbpass;
+
+#A glob matching the munin plugins we wish to enable:
+my $muninPluginGlob = "/usr/share/munin/plugins/postfix*";
+# The dir for the active munin plugins:
+my $muninActivePluginDir = "/etc/munin/plugins";
+
 
 # I assume a group named the same as this. Dovecot and Postfix both do their virtual mailbox related
 # jobs as this user, so the contents of $mailboxDir must be owned by it
@@ -696,8 +703,13 @@ close($f);
 print " done\n";
 
 
-
-
+print "Configuring munin graphs...";
+my $cwd = cwd();
+chdir($muninActivePluginDir);
+foreach(glob($muninPluginGlob)){
+	system("ln -s $_");
+}
+print "done\n";
 
 print "\n\n";
 print "\tRESTARTING SERVICES\n";
@@ -732,6 +744,14 @@ print "Restarting Apache2...";
 system("apache2ctl restart 2>&1 > /dev/null");
 
 if ($? != 0){
+	print " ERROR\n";
+}else{
+	print " done\n";
+}
+
+print "Restarting Munin...";
+system("/etc/init.d/munin-node restart");
+if($? != 0){
 	print " ERROR\n";
 }else{
 	print " done\n";
