@@ -40,8 +40,18 @@ my $mysqluser = undef;
 my $mysqlpass = undef;
 
 # This is used as the from domain for the vacation auto-responder. You might want to change it:
-my $fqdn = `hostname -f`;
-chomp $fqdn;
+my $fqdn;
+if ($ARGV[0] =~ /.+/){
+	$fqdn = $ARGV[0];
+}else{
+	$fqdn = `hostname -f`;
+	chomp $fqdn;
+	print "FQDN detected as '$fqdn'. To change this pass it as the only argument:\n";
+	print "  postfixadmin-installer mail.company.com\n";
+	print "carrying on in six seconds...\n";
+	sleep(6);
+	print "going\n";
+}
 
 # There's a bunch of faffing with files. Every file we edit is backed up first, unless it's 
 # (almost) guaranteed to be either not there already or not wanted (like postfix's mysql config).
@@ -643,10 +653,20 @@ foreach(@config){
 		$line = "\$CONF[\'domain_path\'] = \'YES\';\n";
 
 	}elsif($line =~/^\$CONF\[\'domain_in_mailbox\'/){
-		$line = "\$CONF[\'domain_in_mailbox\'] = \'YES\';\n";
+		$line = "\$CONF[\'domain_in_mailbox\'] = \'NO\';\n";
 
+	}elsif($line =~/^\$CONF\[\'aliases\'/){
+		$line = "\$CONF[\'aliases\'] = \'0\';\n";
+
+	}elsif($line =~/^\$CONF\[\'mailboxes\'/){
+		$line = "\$CONF[\'mailboxes\'] = \'0\';\n";
+
+	}elsif($line =~/^\$CONF\[\'maxquota\'/){
+		$line = "\$CONF[\'maxquota\'] = \'0\';\n";
+
+	}elsif($line =~/^\$CONF\[\'postfix_admin_url\'/){
+		$line = "\$CONF[\'postfix_admin_url\'] = \'http://$fqdn/postfixadmin\';\n";
 	}
-
 	push(@newconfig, $line);
 }
 open (my $f, ">", $postfixadminDir."/config.inc.php") or die "Error opening postfixadmin's config.inc.php for writing";
