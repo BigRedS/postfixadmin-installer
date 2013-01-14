@@ -19,30 +19,31 @@ Just download and run:
 You will be prompted for MySQL credentials if the debian-sys-maint ones can't be 
 found or are found to not work.
 
+If `hostname -f` doesn't return your FQDN (used to generate the autoresponder address 
+and links to the installed system) you can pass it as the argument to the script:
+
+       # perl ./postfixadmin-installer mail.mydomain.net
+
 Config
 ------
 
 The script is split in two. The upper, larger, part is where all the config 
 is set, and it's mostly fairly well commented. A quick run down of the defaults:
 
-* Mailboxes go in `/var/lib/vmail/<user>
+* Mailboxes go in `/var/lib/vmail/<domain>/<local-part>
 * MySQL stuff goes in a db called `vmail` accessed by a user `vmail` from `localhost`.
 * Filesystem stuff is all done as `vmail`:`vmail` by both Dovecot and Postfix.
 * Postfixadmin 2.3.3 is downloaded from Sourceforge. It is extracted into 
   `/var/www/postfixadmin`.
-* The setup password is set to 'password' (you're reminded of this when it finishes) 
-  so don't leave it up for too long.
-* SMTP/TLS is enabled, using default snakeoil certs.
 * imap, imaps, pop3 and pop3s are all enabled.
 * Plaintext imap(s) & pop3(s) auth is *enabled* (because it's really handy for testing).
-* Plaintext auth is default when enabled. 
+* Plaintext auth for imap and pop is default when enabled. 
 
 To Do
 -----
 
 Patches welcome :)
 * Update in anticipation of Wheezy's new Dovecot with a funky directory layout.
-* Install vacation plugin and configure whatever needs it accordingly
 * Use Postfixadmin .deb package. Perhaps stick it in my deb repo so I can always get the 
   latest one.
 * Neaten up my PFA patches, give options to use those, too.
