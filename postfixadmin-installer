@@ -683,7 +683,7 @@ foreach(@config){
 
 	$line =~ s/change-this-to-your.domain.tld/$fqdn/g;
 
-	ush(@newconfig, $line);
+	push(@newconfig, $line);
 }
 
 
