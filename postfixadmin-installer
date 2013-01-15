@@ -666,9 +666,27 @@ foreach(@config){
 
 	}elsif($line =~/^\$CONF\[\'postfix_admin_url\'/){
 		$line = "\$CONF[\'postfix_admin_url\'] = \'http://$fqdn/postfixadmin\';\n";
+
+	}elsif($line =~/^\$CONF\[\'user_footer_link\'/){
+		$line = "\$CONF[\'user_footer_link\'] = \'http://$fqdn/postfixadmin/users/main.php';\n";
+
+	}elsif($line =~/^\$CONF\[\'user_footer_link\'/){
+		$line = "\$CONF[\'user_footer_link\'] = \'http://$fqdn/postfixadmin/users/main.php';\n";
+
+	}elsif($line =~/^\$CONF\[\'user_footer_link\'/){
+		$line = "\$CONF[\'user_footer_link\'] = \'http://$fqdn/postfixadmin/users/main.php';\n";
+
+	}elsif($line =~/^\$CONF\[\'user_footer_link\'/){
+		$line = "\$CONF[\'user_footer_link\'] = \'http://$fqdn/postfixadmin/users/main.php';\n";
+
 	}
-	push(@newconfig, $line);
+
+	$line =~ s/change-this-to-your.domain.tld/$fqdn/g;
+
+	ush(@newconfig, $line);
 }
+
+
 open (my $f, ">", $postfixadminDir."/config.inc.php") or die "Error opening postfixadmin's config.inc.php for writing";
 print $f join("", @newconfig);
 close($f);
@@ -867,22 +885,3 @@ sub backup(){
 	}
 	return $return;
 }
-##!/bin/bash
-#
-### Postfixadmin Postinstall
-#
-#FQHOST=$(hostname -f)
-#perl -p -i -e "s/\[\'postfix_admin_url\'\]\ \=\ \'\'/\[\'postfix_admin_url\'\]\ \=\ \'${FQHOST}\'/" /var/www/postfixadmin/config.inc.php
-#perl -p -i -e "s/change-this-to-your.domain.tld/${FQHOST}/g" /var/www/postfixadmin/config.inc.php
-#perl -p -i -e "s/\[\'user_footer_link\'\]\ \=\ .*$/\[\'user_footer_link\'\]\ \=\ \"http\:\/\/${FQHOST}\/postfixadmin\/users\/main.php\"\;/" /var/www/postfixadmin/config.inc.php
-#perl -p -i -e "s/\[\'domain_path\'\]\ \=\ \'NO\'/\[\'domain_path\'\]\ \=\ \'YES\'/" /var/www/postfixadmin/config.inc.php
-#perl -p -i -e "s/\[\'domain_in_mailbox\'\]\ \=\ \'YES\'/\[\'domain_in_mailbox\'\]\ \=\ \'NO\'/" /var/www/postfixadmin/config.inc.php
-##!/bin/bash
-#
-### Postfixadmin Preinstall
-#
-#perl -p -i -e 's/deb\ http\:\/\/mirror.positive-internet.com\/debian\ squeeze\ main.*$/deb http:\/\/mirror.positive-internet.com\/debian squeeze main contrib non-free/' /etc/apt/sources.list
-#perl -p -i -e 's/deb\ http\:\/\/security.debian.org\/debian\ squeeze\/updates\ main.*$/deb http:\/\/security.debian.org\/debian squeeze main contrib non-free/' /etc/apt/sources.list
-#apt-get update
-#apt-get install libwww-perl pwgen postfix mysql-server
-#
