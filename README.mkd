@@ -13,6 +13,7 @@ Installation
 
 Just download and run:
 
+	# apt-get install postfix mysql-server libwww-perl
 	# wget https://raw.github.com/BigRedS/postfixadmin-installer/master/postfixadmin-installer --no-check-certificate
 	# perl ./postfixadmin-installer
 
