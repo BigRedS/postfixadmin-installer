@@ -39,6 +39,9 @@ my $mysqlhost = undef;
 my $mysqluser = undef;
 my $mysqlpass = undef;
 
+my $libmailsender = "http://avi.co/stuff/libmail-sender-perl_0.8.22-1_all.deb";
+my $libmailsender_tmpfilename = "/tmp/libmail-sender-perl_0.8.22-1_all.deb";
+
 # This is used as the from domain for the vacation auto-responder. You might want to change it:
 my $fqdn;
 if ($ARGV[0] =~ /.+/){
@@ -366,6 +369,21 @@ if(system($cmd) != 0){
 	print " done\n";
 }
 
+
+print "Testing for Mail::Sender (for the vacation package)... ";
+my $mailSenderVersion;
+eval{
+	require Mail::Sender
+	$mailSenderVersion = $Mail::Sender::VERSION;
+};
+if($@){
+	print "Not found\n";
+	print "Installing Mail::Sender... ";
+	getstore($libmailsender, $libmailsender_tmpfilename);
+	system("dpkg -y -i $libmailsender_tmpfilename")
+}else{
+	print "Found version $mailSenderVersion\n";
+}
 
 print "Creating user $unixUser in group $unixUser... ";
 my($uid,$gid);
