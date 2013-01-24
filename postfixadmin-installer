@@ -23,6 +23,13 @@ use File::Copy;
 use Cwd;
 use Digest::SHA qw/sha1_hex/;
 
+my $f_log = './postfixadmin-installer.log';
+if (-f $f_log){
+	_error ("Logfile '$f_log' already exists. Please remove it before carrying on");
+}
+my @errors;
+my $task;
+
 select(STDOUT);
 $|++;
 
@@ -306,12 +313,12 @@ sub sasl(){
 	my $out;
 	eval {open($in, "<", $saslauthdBackupFile) or die()};
 	if ($@){
-		print "Error opening $saslauthdBackupFile for reading\n";
+		fail("Error opening $saslauthdBackupFile for reading");
 		return;
 	}
 	eval{open($out, ">", $saslauthdFile)};
 	if ($@){
-		print "Error opening $saslauthdFile for writing\n";
+		fail("Error opening $saslauthdFile for writing");
 		return;
 	}
 	while(<$in>){
@@ -327,7 +334,7 @@ sub sasl(){
 	}
 	close($out); 
 	close($in);
-	print "done\n";
+	return 1;
 }
 
 
@@ -358,101 +365,99 @@ if ( (!$mysqlhost || !$mysqluser )){
 }
 
 
-print "Installing packages (this can take a few minutes)... ";
-my $cmd = "apt-get -y install $packages";
-if(system($cmd) != 0){
-	print " FAIL";
-	print STDERR "ERROR installing packages:\n$packages\n";
-	print STDERR "This is probably unrecoverable, exiting\n";
+start("Installing packages (this can take a few minutes)");
+run("apt-get -u install $packages");
+if(run($cmd) != 0){
+	fail($packages);
 	exit 1;
 }else{
-	print " done\n";
+	succeed();
 }
 
 
-print "Testing for Mail::Sender (for the vacation package)... ";
+start("Testing for Mail::Sender (for the vacation package)";
 my $mailSenderVersion;
 eval{
-	require Mail::Sender
+	require Mail::Sender;
 	$mailSenderVersion = $Mail::Sender::VERSION;
 };
 if($@){
-	print "Not found\n";
-	print "Installing Mail::Sender... ";
+	start("Not found; installing Mail::Sender");
+	_log("Downloading '$libmailsender' to '$libmailsender_tmpfilename'") 
 	getstore($libmailsender, $libmailsender_tmpfilename);
-	system("dpkg -y -i $libmailsender_tmpfilename")
+	my $cmd = "dpkg -y -i $libmailsender_tmpfilename >> $f_log";
+	if(run($cmd)){
+		succeed();
+	}else{
+		fail();
 }else{
-	print "Found version $mailSenderVersion\n";
+	succeed("Version $Mail::Sender::VERSION");
 }
 
-print "Creating user $unixUser in group $unixUser... ";
+start("Creating user $unixUser in group $unixUser");
 my($uid,$gid);
 if ( getpwnam($unixUser) =~ /(\d+)/){
 	$uid = $1;
 	if(getgrnam($unixUser) =~ /(\d+)/){
 		$gid = $1;
-		print "skipping; $unixUser:$unixUser already exist\n";
+		_print ("skipping; $unixUser:$unixUser already exist\n");
 	}else{
-		`groupadd $unixUser`;
-		`usermod -a -G $unixUser $unixUser`;
-		print "done: $unixUser exists, created group $unixUser (gid: $gid)\n";
+		foreach("groupadd $unixUser", "usermod -a -G $unixUser $unixUser"){
+			run($cmd);
+		}
 	}
+	succeed();
 }else{
 	my $cmd = "useradd -r -d $mailboxDir -s /sbin/nologin -c \"Virtual mailbox\" $unixUser";
-	if(system($cmd) != 0){
-		print "FAIL\n";
-		print STDERR "\t$cmd\n\texited non-zero\n";
+	if(run($cmd) != 0){
+		fail("useradd exited non-zero");
 	}else{
 		$uid = getpwnam($unixUser);
 		$gid = getgrnam($unixUser);
 		chomp $uid;
-		print " done (UID: $uid)\n";
+		succeed("UID: $uid)";
 	}
 }
 
-print "Creating user $vacationUser...";
+start("Creating user $vacationUser")
 my $cmd = "useradd -r -U -d $vacationSpool -m -s /sbin/nologin $vacationUser";
-if(system($cmd) != 0){
-	print "FAIL\n";
-	print STDERR"\t$cmd\n\texited non-sero\n";
+if(run($cmd) != 0){
+	fail("Useradd exited non-zero");
 }else{
-	print " done\n";
+	succeed();
 }
 
 
 
-print "Creating mailbox dir ($mailboxDir)...";
+start("Creating mailbox dir ($mailboxDir)";
 my $cmd = "mkdir -p $mailboxDir && chmod 770 $mailboxDir && chown -R $unixUser:$unixUser $mailboxDir";
-if(system($cmd) != 0){
-	print "FAIL\n";
-	print STDERR "\t$cmd\n\texited non-zero\n";
+if(run($cmd) != 0){
+	fail();
 }else{
-	print " done\n";
+	succeed();
 }
 
 
 # Creating postfix MySQL files:
 while ( my($file, $query) = each %postfixFiles ){
 	my $file = $postfixDir."/".$file.".cf";
-	print "Creating $file...";
+	start "Creating $file...";
 	my $f;
 	eval{open($f, ">", $file)};
 	if ($@){
-		print "FAIL\n";
-		print STDERR "\tcouldn't open $file for writing.\n"; 
-		push(@errors,$file);
+		fail("couldn't open $file for writing: $!");
 	}else{
 		print $f &postfixCredentials();
 		print $f $query;
 		close($f);
 		`chown postfix:postfix $file`;
 		`chmod 600 $file`;
-		print " done\n";
+		succeed();
 	}
 }
 
 #Creating postfix transport maps file
-print "Creating tranport maps file $postfixTransportMapsFile...";
+start("Creating tranport maps file $postfixTransportMapsFile");
 my $f;
 eval {open($f, ">", "/etc/postfix/transport") or die "Error opening transport file \"$postfixTransportMapsFile\" : $!";};
 if ($@){
@@ -462,61 +467,57 @@ if ($@){
 	print $f "$vacationDomain $vacationUser\n";
 	close($f);
 	my $cmd = "postmap /etc/postfix/transport";
-	if(system($cmd) != 0){
-		print " FAIL: error running postmap command on \"$postfixTransportMapsFile\"";
+	if(run($cmd) != 0){
+		fail();
 	}else{
-		print " done\n";
+		succeed();
 	}
 }
 
 
 # dovecot-sql.conf:
-print "Backing up $dovecotSqlFile to $dovecotSqlBackupFile...";
+start("Backing up $dovecotSqlFile to $dovecotSqlBackupFile");
 if ( -f $dovecotSqlFile ){
 	my $write = &backup($dovecotSqlFile, $dovecotSqlBackupFile);
 	if($write == 1){
-		print " done\n";
-		print "Creating new $dovecotSqlFile...\n";
+		succeed()
+		start("Creating new $dovecotSqlFile");
 		my $f;
-		eval {open ($f, ">", $dovecotSqlFile) or die()};
+		eval {open ($f, ">", $dovecotSqlFile) or die("Error opening dovecot SQL file $dovecotSqlFile : $!");
 		if ($@){
-			print "FAIL\n";
-			print STDERR "\tfailed to open $dovecotSqlFile for writing\n";
-			push(@errors,$dovecotSqlFile);
+			fail($@);
 		}else{
 			print $f &dovecotDotSql($uid);
 			close($f);
 			`chown root:root $dovecotSqlFile`;
 			`chmod 600 $dovecotSqlFile`;
-			print " done\n";
+			succeed();
 		}
 	}
 }else{ 
-	print " skip; $dovecotSqlFile doesn't exist\n";
+	print " skipping; $dovecotSqlFile doesn't exist\n";
 }
 
 
 
 # dovecot.conf
-print "Backing up $dovecotDotConfFile to $dovecotDotConfBackupFile...";
+start("Backing up $dovecotDotConfFile to $dovecotDotConfBackupFile");
 my $write = &backup($dovecotDotConfFile, $dovecotDotConfBackupFile);
 if ($write == 1){
 	print "Replacing $dovecotDotConfFile ...";
 	my $f;
 	eval{open ($f, ">", "$dovecotDotConfFile") or die()};
 	if($@){
-		print "FAIL\n";
-		print STDERR "\tcouldn't open $dovecotDotConfFile for writing\n";
+		fail("couldn't open $dovecotDotConfFile for writing:$!");
 	}else{
 		print $f &dovecotDotConf($uid);
 		close($f);
-		print " done\n";
+		succeed();
 	}
 }
 
-
 # main.cf
-print "Checking for config in main.cf...";
+start("Checking for config in main.cf");
 my @lines; 
 my $lastrun;
 my $skipMainDotCf = 0;
@@ -527,122 +528,119 @@ eval{
 	$lastrun = $1;
 };
 if($@){
-	print"FAIL\n";
-	print STDERR "\tError opening $postfixMainDotCfFile for writing. Several other things are likely to go wrong\n";
+	fail("error opening $postfixMainDotCfFile for writing. Several other things are likely to go wrong");
 }
 if ( $#lines > 0 ){
-	print " done\n\tFound insertion from $lastrun, skipping main.cf config\n";
+	succeed("Found insertion from $lastrun, skipping main.cf config");
 	$skipMainDotCf = 1;
 }else{
-	print "done\n";
+	succeed();
 }
 
-print "Backing up $postfixMainDotCfFile to $postfixMainDotCfBackupFile...";
+start("Backing up $postfixMainDotCfFile to $postfixMainDotCfBackupFile");
 if ($skipMainDotCf == 1){
 	print "skipping $postfixMainDotCfFile\n";
 }else{	
 	my $write = &backup($postfixMainDotCfFile, $postfixMainDotCfBackupFile);
 	if ($write == 1){
-		print " done\n";
-		print "Appending to $postfixMainDotCfFile...";
+		succeed();
+		start("Appending to $postfixMainDotCfFile");
 		my $f;
 		eval {open ($f, ">>", $postfixMainDotCfFile) or die()};
 		if ($@){
-			print "FAIL\n";
-			print STDERR "\terror opening postfix's main.cf ($postfixMainDotCfFile) for writing\n";
+			fail("error opening postfix's main.cf ($postfixMainDotCfFile) for writing\n");
 		}else{
 			print $f &mainDotCf($uid,$gid);
 			close($f);
-			print " done\n";
+			succeed();
 		}
 	}
 }
 
 
-print "Backing up $postfixMasterDotCfFile to $postfixMasterDotCfBackupFile...";
+start("Backing up $postfixMasterDotCfFile to $postfixMasterDotCfBackupFile");
 $write = &backup($postfixMasterDotCfFile, $postfixMasterDotCfBackupFile);
 if ($write == 1){
-	print "done\n";
-	print "Appending to $postfixMasterDotCfFile...";
+	succeed();
+	start("Appending to $postfixMasterDotCfFile")
 	my $f;
-	eval{open ($f, ">>", $postfixMasterDotCfFile) or die()};
+	eval{open ($f, ">>", $postfixMasterDotCfFile) or die($!)};
 	if($@){
-		print "FAIL\n";
-		print STDERR"\tcouldn't open $postfixMasterDotCfFile for appending";
+		fail("Couldn't open $postfixMasterDotCfFile for appending : $@");
 	}else{
 		print $f &masterDotCf;
 		print $f $vacationMasterDotCf;
 		close($f);
-		print " done\n";
+		succeed();
 	}
 }else{
 	print "Skipping $postfixMasterDotCfFile\n";
 }
 
-print "Creating auth socket dir...";
-if (system("mkdir -p /var/spool/postfix/private/") == 0){
-	print " done\n";
+start("Creating auth socket dir");
+if (run("mkdir -p /var/spool/postfix/private/") == 0){
+	succeed;
 }else{
-	print "FAIL\n";
-	print STDERR"\t'mkdir -p /var/spool/postfix/private/)' returned non-zero\n";
+	fail()
 }
 
-print "Backing up $saslauthdFile to $saslauthdBackupFile...";
+start("Backing up $saslauthdFile to $saslauthdBackupFile");
 
 $write = &backup($saslauthdFile, $saslauthdBackupFile);
 if ($write == 1){
-	print "Configuring saslauthd...";
-	&sasl();
+	succeed();
+	start("Configuring saslauthd";
+	succeed() if (&sasl());
 }	
 
 
 
 # MySQL setup:
 
-print "Creating db...";
+start("Creating db");
 my $mysqlconnect = "mysql -u $mysqluser -h $mysqlhost -p$mysqlpass";
 
 if (system("echo \"use $dbname\" | $mysqlconnect 2>/dev/null") == 0){
 	print "skip; db already exists\n";
 }else{
 	if(system("echo \"create database $dbname\" | $mysqlconnect") == 0){
-		print " done\n";
+		succeed();
 	}else{
-		print "FAIL\n";
-		print STDERR "\'create database $dbname' returned non-zero'\n";
+		fail("'create database $dbname' returned non-zero");
 	}
 }
 
-print "Configuring db";
+start("Configuring db");
 if (system("echo \"grant all privileges on $dbname.* to $dbuser identified by \'$dbpass\'\" | $mysqlconnect") == 0){
-	print " done\n";
+	succeed();
 }else{
-	print "FAIL\n";
-	print STDERR"\t\'grant all privileges on $dbname.* to $dbuser identified by \'$dbpass\'\\' returned non-zero\n";
+	fail("'grant all privileges on $dbname.* to $dbuser identified by \'$dbpass\'\\' returned non-zero\n");
 }
 
 
-print "Getting postfixadmin...";
-getstore($postfixadminURL, "/var/www/postfixadmin.tar.gz");
-print " done\n";
+start("Getting postfixadmin");
+if(getstore($postfixadminURL, "/var/www/postfixadmin.tar.gz")){
+	succeed();
+}else{
+	fail();
+}
 
 
-print "Extracting postfixadmin...";
+start("Extracting postfixadmin");
 if ( -d $postfixadminDir){
 	opendir (my $d, $postfixadminDir);
  	my @files = grep { !/^\./ && -f "$postfixadminDir/$_" } readdir($d);
 	if ($#files > 1){
-		print "FAIL\n";
-		print STDERR "\t$postfixadminDir already has files in it. Not touching them\n";
+		fail("PostfixAdmin directory '$postfixadminDir' already has files in it. Not touching them\n");
 	}
 }else{
-	`tar -C /var/www -xf /var/www/postfixadmin.tar.gz`;
-	`mv /var/www/postfixadmin-* $postfixadminDir`;
-	print " done\n";
+	run(tar -C /var/www -xf /var/www/postfixadmin.tar.gz);
+	run(mv /var/www/postfixadmin-* $postfixadminDir);
+	succeed();
 }
 
 
-print "Configuring postfixadmin...";
+start("Configuring postfixadmin");
 open (my $f, "<", $postfixadminDir."/config.inc.php") or die "Error opening postifixadmin's config.inc.php";
 my @config = <$f>;
 close $f;
@@ -696,7 +694,6 @@ foreach(@config){
 
 	}elsif($line =~/^\$CONF\[\'user_footer_link\'/){
 		$line = "\$CONF[\'user_footer_link\'] = \'http://$fqdn/postfixadmin/users/main.php';\n";
-
 	}
 
 	$line =~ s/change-this-to-your.domain.tld/$fqdn/g;
@@ -708,30 +705,27 @@ foreach(@config){
 open (my $f, ">", $postfixadminDir."/config.inc.php") or die "Error opening postfixadmin's config.inc.php for writing";
 print $f join("", @newconfig);
 close($f);
-print " done\n";
+succeed();
 
 
-
-print "Copying vacation script into place...";
+start("Copying vacation script into place");
 $cmd = "cp /var/www/postfixadmin/VIRTUAL_VACATION/vacation.pl $vacationSpool";
-if (system($cmd) != 0){
-	print " FAIL\n";
-	print STDERR "\tError copying /var/www/postfixadmin/VIRTUAL_VACATION/vacation.pl to $vacationSpool : $!\n";
+if (run($cmd) != 0){
+	fail("Error copying /var/www/postfixadmin/VIRTUAL_VACATION/vacation.pl to $vacationSpool : $!");
 }else{
-	print " done\n";
+	succeed();
 }
 
 
-print "Setting permissions on vacation script...";
+start("Setting permissions on vacation script");
 $cmd = "chown -R vacation:vacation $vacationSpool && chmod -R 700 $vacationSpool";
-if (system($cmd) != 0){
-	print " FAIL\n";
-	print STDERR "Error setting permissions on vacation spool at $vacationSpool : $!\n";
+if (run($cmd) != 0){
+	fail("Error setting permissions on vacation spool at $vacationSpool : $!");
 }else{
-	print " done\n";
+	succeed();
 }
 
-print "Configuring vacation script...";
+start("Configuring vacation script");
 my $script = $vacationSpool."/vacation.pl";
 open(my $f, "<", $script);
 my @config = <$f>;
@@ -757,16 +751,15 @@ foreach my $line (@config){
 open(my $f, ">", $script) or die "Error opening vacation script \"$script\" for writing : $!\n";
 print $f join("", @newconfig);
 close($f);
-print " done\n";
+succeed();
 
-
-print "Configuring munin graphs...";
+start("Configuring munin graphs");
 my $cwd = cwd();
 chdir($muninActivePluginDir);
 foreach(glob($muninPluginGlob)){
 	system("ln -s $_");
 }
-print "done\n";
+succeed();
 
 print "\n\n";
 print "\tRESTARTING SERVICES\n";
@@ -902,4 +895,51 @@ sub backup(){
 		print "done\n";
 	}
 	return $return;
+}
+
+sub start{
+	$task = shift;
+	print $task."... ";
+	_log($task);
+}
+sub fail{
+	my $explanation = shift;
+	print "FAILED";
+	print ": $explanation" if $explanation =~ /.+/;
+	print "\n";
+	push(@errors, $task);
+}
+sub succeed{
+	print "Done\n";
+}
+
+
+sub run{
+	my $cmd = shift;
+	$cmd.=" 2>&1 >> $f_log";
+	_log{"Command: $cmd");
+	return system($cmd);
+}
+
+sub _print{
+	my $message = shift;
+	chomp $message;
+	print $message;
+	_log($message);
+}
+
+sub _log{
+	my $message = shift;
+	chomp $message;
+	open(my $fh, "<", $f_log) or warn "Error opening logfile $f_loge: $!");
+	print $fh $message ."\n";
+	close($fh);
+}
+
+sub _error{
+	my $message = shift;
+	my $exit = shift || 1;
+	chomp $message;
+	print STDERR $message."\n";
+	exit $exit;
 }
