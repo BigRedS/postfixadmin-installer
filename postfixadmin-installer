@@ -122,7 +122,7 @@ $vacationMasterDotCf .= '  flags=Rq user=vacation argv=/var/spool/vacation/vacat
 
 # Packages we depend upon. Remember that the script can't cope with installers that need interaction. 
 # Any that do need adding below
-my $packages = "dovecot-common dovecot-imapd dovecot-pop3d postfix-mysql libapache2-mod-php5 php5-mysql php5-imap libsasl2-2 libsasl2-modules sasl2-bin libemail-sender-perl libdbd-mysql-perl libemail-valid-perl libmime-perl liblog-log4perl-perl liblog-dispatch-perl libgetopt-argvfile-perl libmime-charset-perl libmime-encwords-perl";
+my $packages = "dovecot-common postfix-mysql libapache2-mod-php5 php5-mysql php5-imap libsasl2-2 libsasl2-modules sasl2-bin libemail-sender-perl libdbd-mysql-perl libemail-valid-perl libmime-perl liblog-log4perl-perl liblog-dispatch-perl libgetopt-argvfile-perl libmime-charset-perl libmime-encwords-perl";
 
 # postfix and mysql-server both require human-interaction to install, so we insist it's done before 
 # this script runs. There's probably a more elegant way of doing this. This also forces (or at least 
@@ -438,13 +438,8 @@ if(run($cmd) != 0){
 	succeed();
 }
 
-start("Creating mailbox dir ($mailboxDir)");
-my $cmd = "mkdir -p $mailboxDir && chmod 770 $mailboxDir && chown -R $unixUser:$unixUser $mailboxDir";
-if(run($cmd) != 0){
-	fail();
-}else{
-	succeed();
-}
+runTest("mkdir -m 770 -p $mailboxDir", "creating mailbox dir '$mailboxDir' with mode 770");
+runTest("chown -R $unixUser:$unixUser $mailboxDir", "Setting owner of $mailboxDir to $unixUser:$unixUser");
 
 
 # Creating postfix MySQL files:
@@ -922,11 +917,22 @@ sub succeed{
 	print "Done\n";
 }
 
+sub runTest{
+	my $cmd = shift;
+	my $desc = shift;
+	start($desc);
+	if(my $return = run($cmd)){
+		succeed();
+		return $return;
+	}else{
+		fail();
+	}
+}
 
 sub run{
 	my $cmd = shift;
-	$cmd.=" 2>&1 >> $f_log";
 	_log("Command: $cmd");
+	$cmd.=" 2>&1 >> $f_log";
 	my $return =  system($cmd);
 	succeed() if $return = 0;
 	fail() if $return != 0;
