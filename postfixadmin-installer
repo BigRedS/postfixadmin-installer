@@ -24,9 +24,6 @@ use Cwd;
 use Digest::SHA qw/sha1_hex/;
 
 my $f_log = '/tmp/postfixadmin-installer.log';
-if (-f $f_log){
-	_error ("Logfile '$f_log' already exists. Please remove it before carrying on");
-}
 my $writeLog = 1;
 eval{ open(my $f, ">", $f_log) or die "Error opening logfile '$f_log' : $!" };
 if($@){
