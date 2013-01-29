@@ -62,8 +62,8 @@ if ($ARGV[0] =~ /.+/){
 	chomp $fqdn;
 	print "FQDN detected as '$fqdn'. To change this pass it as the only argument:\n";
 	print "  postfixadmin-installer mail.company.com\n";
-	print "carrying on in six seconds...\n";
-	sleep(6);
+	print "carrying on in two seconds...\n";
+	sleep(2);
 	print "going\n";
 }
 
