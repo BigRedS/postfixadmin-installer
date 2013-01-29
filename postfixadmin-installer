@@ -485,26 +485,27 @@ if ($@){
 
 
 # dovecot-sql.conf:
-start("Backing up $dovecotSqlFile to $dovecotSqlBackupFile");
+my $write = 1;
 if ( -f $dovecotSqlFile ){
-	my $write = &backup($dovecotSqlFile, $dovecotSqlBackupFile);
-	if($write == 1){
+	start("Backing up $dovecotSqlFile to $dovecotSqlBackupFile");
+	$write = &backup($dovecotSqlFile, $dovecotSqlBackupFile);
+}
+if($write == 1){
+	succeed();
+	start("Creating new $dovecotSqlFile");
+	my $f;
+	eval {open ($f, ">", $dovecotSqlFile) or die("Error opening dovecot SQL file $dovecotSqlFile : $!");};
+	if ($@){
+		fail($@);
+	}else{
+		print $f &dovecotDotSql($uid);
+		close($f);
+		run("chown root:root $dovecotSqlFile");
+		run("chmod 600 $dovecotSqlFile");
 		succeed();
-		start("Creating new $dovecotSqlFile");
-		my $f;
-		eval {open ($f, ">", $dovecotSqlFile) or die("Error opening dovecot SQL file $dovecotSqlFile : $!");};
-		if ($@){
-			fail($@);
-		}else{
-			print $f &dovecotDotSql($uid);
-			close($f);
-			`chown root:root $dovecotSqlFile`;
-			`chmod 600 $dovecotSqlFile`;
-			succeed();
-		}
 	}
 }else{ 
-	print " skipping; $dovecotSqlFile doesn't exist\n";
+	print " skipping";
 }
 
 
