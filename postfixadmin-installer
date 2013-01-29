@@ -640,9 +640,8 @@ if ( -d $postfixadminDir){
 		fail("PostfixAdmin directory '$postfixadminDir' already has files in it. Not touching them\n");
 	}
 }else{
-	run('tar -C /var/www -xf /var/www/postfixadmin.tar.gz');
-#	run('mv /var/www/postfixadmin-* $postfixadminDir');
-	run('ln -s /var/www/postfixadmin-* $postfixadminDir');
+	run("tar -C /var/www -xf /var/www/postfixadmin.tar.gz");
+	run("ln -s /var/www/postfixadmin-* $postfixadminDir");
 	succeed();
 }
 
