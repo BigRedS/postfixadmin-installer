@@ -1,6 +1,6 @@
 #! /usr/bin/perl
 
-# postfixdovecotmysql
+# postfixadmin-installer
 
 # Installs and nearly configures a Postfix/Dovecot/MySQL/Postfixadmin mailer on a Debianish system.
 
@@ -11,10 +11,6 @@
 # sure what it does if it doesn't get them :)
 
 # Written by Avi (@avi.co) in 2011
-
-##Todo: randomise postfixadmin password
-##Todo: cope with bad debian-sys-maint credentials
-##Todo: test on Lucid and anything else both important and not Debian (??)
 
 #Depends: libwww-perl, mysql-server, postfix
 
