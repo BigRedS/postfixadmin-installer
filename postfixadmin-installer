@@ -1,6 +1,6 @@
 #! /usr/bin/perl
 
-# postfixdovecotmysql
+# Postfixadmin-installer
 
 # Installs and nearly configures a Postfix/Dovecot/MySQL/Postfixadmin mailer on a Debianish system.
 
