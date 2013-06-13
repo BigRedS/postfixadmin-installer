@@ -410,8 +410,6 @@ if($@){
 	succeed("Version $Mail::Sender::VERSION");
 }
 
-exit;
-
 start("Creating user $unixUser in group $unixUser");
 my($uid,$gid);
 if ( getpwnam($unixUser) =~ /(\d+)/){
