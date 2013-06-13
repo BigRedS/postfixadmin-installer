@@ -12,10 +12,6 @@
 
 # Written by Avi (@avi.co) in 2011
 
-##Todo: randomise postfixadmin password
-##Todo: cope with bad debian-sys-maint credentials
-##Todo: test on Lucid and anything else both important and not Debian (??)
-
 #Depends: libwww-perl, mysql-server, postfix
 
 use strict;
@@ -125,14 +121,14 @@ $vacationMasterDotCf .= '  flags=Rq user=vacation argv=/var/spool/vacation/vacat
 
 # Packages we depend upon. Remember that the script can't cope with installers that need interaction. 
 # Any that do need adding below
-my $packages = "dovecot-common postfix-mysql libapache2-mod-php5 php5-mysql php5-imap libsasl2-2 libsasl2-modules sasl2-bin libemail-sender-perl libdbd-mysql-perl libemail-valid-perl libmime-perl liblog-log4perl-perl liblog-dispatch-perl libgetopt-argvfile-perl libmime-charset-perl libmime-encwords-perl";
+my $packages = "dovecot-common postfix-mysql libapache2-mod-php5 php5-mysql php5-imap libsasl2-2 libsasl2-modules sasl2-bin libdbd-mysql-perl libemail-valid-perl libmime-perl liblog-log4perl-perl liblog-dispatch-perl libgetopt-argvfile-perl libmime-charset-perl libmime-encwords-perl dovecot-imapd dovecot-pop3d ssl-cert";
 
 # postfix and mysql-server both require human-interaction to install, so we insist it's done before 
 # this script runs. There's probably a more elegant way of doing this. This also forces (or at least 
 # encourages) removal of the old mailer first.
-my @installed = grep(/^ii/,`dpkg -l postfix mysql-server`);
-unless ($#installed >= 1){
-	print STDERR "I need both the postfix and mysql-server packages installed and configured before I can begin.\n";
+my @installed = grep(/^ii/,`dpkg -l postfix mysql-server libwww-perl`);
+unless ($#installed >= 2){
+	print STDERR "I need the libwww-perl, postfix and mysql-server packages installed and configured before I can begin. At least one of them wasn't found. Aborting.";
 	exit 1;
 }
 
@@ -209,6 +205,11 @@ sub mainDotCf(){
 
 # # # Begin insertion by postfixdovecotmysql script $date # # # 
 
+# TLS parameters
+smtpd_tls_cert_file=/etc/ssl/certs/ssl-cert-snakeoil.pem
+smtpd_tls_key_file=/etc/ssl/private/ssl-cert-snakeoil.key
+smtpd_use_tls=yes
+
 virtual_mailbox_domains = proxy:mysql:$postfixDir/mysql_virtual_domains_maps.cf
 virtual_alias_maps =
    proxy:mysql:$postfixDir/mysql_virtual_alias_maps.cf,
@@ -280,13 +281,17 @@ disable_plaintext_auth = no
 # problems:
 # auth_debug=yes
 
-ssl = no
+ssl = yes
 
 protocol imap {
+  ssl_cert=</etc/ssl/certs/ssl-cert-snakeoil.pem
+  ssl_key=</etc/ssl/private/ssl-cert-snakeoil.key
 }
 
 protocol pop3 {
   pop3_uidl_format = %08Xu%08Xv
+  ssl_cert=</etc/ssl/certs/ssl-cert-snakeoil.pem
+  ssl_key=</etc/ssl/private/ssl-cert-snakeoil.key
 }
 
 # 'plain' here doesn't override the disble_plaintext_auth_default of 'yes'.
@@ -388,18 +393,18 @@ if(run($cmd) != 0){
 }
 
 
-start("Testing for Mail::Sender (for the vacation package");
+start("Testing for Mail::Sender (for the vacation package)");
 my $mailSenderVersion;
 eval{
 	require Mail::Sender;
 	$mailSenderVersion = $Mail::Sender::VERSION;
 };
 if($@){
-	start("Not found; installing Mail::Sender");
+	start("Not found\nInstalling Mail::Sender");
 	_log("Downloading '$libmailsender' to '$libmailsender_tmpfilename'");
 	getstore($libmailsender, $libmailsender_tmpfilename);
 	my $cmd = "dpkg -i $libmailsender_tmpfilename >> $f_log";
-	if(run($cmd)){
+	if(run($cmd) == 0){
 		succeed();
 	}else{
 		fail();
@@ -442,6 +447,7 @@ if(run($cmd) != 0){
 }
 
 runTest("mkdir -m 770 -p $mailboxDir", "creating mailbox dir '$mailboxDir' with mode 770");
+runTest("chmod a+w /var", "Setting /var world-writeable for Dovecot");
 runTest("chown -R $unixUser:$unixUser $mailboxDir", "Setting owner of $mailboxDir to $unixUser:$unixUser");
 
 
@@ -924,7 +930,8 @@ sub runTest{
 	my $cmd = shift;
 	my $desc = shift;
 	start($desc);
-	if(my $return = run($cmd)){
+	my $return = run($cmd);
+	if($return == 0){
 		succeed();
 		return $return;
 	}else{
