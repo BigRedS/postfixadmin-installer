@@ -125,7 +125,7 @@ my $packages = "dovecot-common postfix-mysql libapache2-mod-php5 php5-mysql php5
 # encourages) removal of the old mailer first.
 my @installed = grep(/^ii/,`dpkg -l postfix mysql-server libwww-perl`);
 unless ($#installed >= 2){
-	print STDERR "I need the libwww-perl, postfix and mysql-server packages installed and configured before I can begin. At least one of them wasn't found. Aborting."";
+	print STDERR "I need the libwww-perl, postfix and mysql-server packages installed and configured before I can begin. At least one of them wasn't found. Aborting.";
 	exit 1;
 }
 
