@@ -44,7 +44,6 @@ To Do
 -----
 
 Patches welcome :)
-* Update in anticipation of Wheezy's new Dovecot with a funky directory layout.
 * Use Postfixadmin .deb package. Perhaps stick it in my deb repo so I can always get the 
   latest one.
 * Neaten up my PFA patches, give options to use those, too.
