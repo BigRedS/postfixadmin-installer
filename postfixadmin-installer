@@ -390,18 +390,18 @@ if(run($cmd) != 0){
 }
 
 
-start("Testing for Mail::Sender (for the vacation package");
+start("Testing for Mail::Sender (for the vacation package)");
 my $mailSenderVersion;
 eval{
 	require Mail::Sender;
 	$mailSenderVersion = $Mail::Sender::VERSION;
 };
 if($@){
-	start("Not found; installing Mail::Sender");
+	start("Not found\nInstalling Mail::Sender");
 	_log("Downloading '$libmailsender' to '$libmailsender_tmpfilename'");
 	getstore($libmailsender, $libmailsender_tmpfilename);
 	my $cmd = "dpkg -i $libmailsender_tmpfilename >> $f_log";
-	if(run($cmd)){
+	if(run($cmd) == 0){
 		succeed();
 	}else{
 		fail();
@@ -409,6 +409,8 @@ if($@){
 }else{
 	succeed("Version $Mail::Sender::VERSION");
 }
+
+exit;
 
 start("Creating user $unixUser in group $unixUser");
 my($uid,$gid);
