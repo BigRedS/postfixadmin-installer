@@ -12,10 +12,6 @@
 
 # Written by Avi (@avi.co) in 2011
 
-##Todo: randomise postfixadmin password
-##Todo: cope with bad debian-sys-maint credentials
-##Todo: test on Lucid and anything else both important and not Debian (??)
-
 #Depends: libwww-perl, mysql-server, postfix
 
 use strict;
@@ -127,9 +123,9 @@ my $packages = "dovecot-common postfix-mysql libapache2-mod-php5 php5-mysql php5
 # postfix and mysql-server both require human-interaction to install, so we insist it's done before 
 # this script runs. There's probably a more elegant way of doing this. This also forces (or at least 
 # encourages) removal of the old mailer first.
-my @installed = grep(/^ii/,`dpkg -l postfix mysql-server`);
-unless ($#installed >= 1){
-	print STDERR "I need both the postfix and mysql-server packages installed and configured before I can begin.\n";
+my @installed = grep(/^ii/,`dpkg -l postfix mysql-server libwww-perl`);
+unless ($#installed >= 2){
+	print STDERR "I need the libwww-perl, postfix and mysql-server packages installed and configured before I can begin.\n";
 	exit 1;
 }
 
