@@ -444,6 +444,7 @@ if(run($cmd) != 0){
 }
 
 runTest("mkdir -m 770 -p $mailboxDir", "creating mailbox dir '$mailboxDir' with mode 770");
+runTest("chmod a+w /var", "Setting /var world-writeable for Dovecot");
 runTest("chown -R $unixUser:$unixUser $mailboxDir", "Setting owner of $mailboxDir to $unixUser:$unixUser");
 
 
