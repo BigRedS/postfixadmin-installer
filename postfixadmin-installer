@@ -926,7 +926,8 @@ sub runTest{
 	my $cmd = shift;
 	my $desc = shift;
 	start($desc);
-	if(my $return = run($cmd)){
+	my $return = run($cmd);
+	if($return == 0){
 		succeed();
 		return $return;
 	}else{
