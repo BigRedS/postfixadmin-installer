@@ -23,6 +23,12 @@ use File::Copy;
 use Cwd;
 use Digest::SHA qw/sha1_hex/;
 
+if(availableDovecotVersion() !~ /^2\./){
+  print STDERR "This script will not work on versions of Dovecot other than 2.x (you have ".availableDovecotVersion().")\nExiting.\n";
+  exit 1;
+}
+
+
 my $f_log = '/tmp/postfixadmin-installer.log';
 my $writeLog = 1;
 eval{ open(my $f, ">", $f_log) or die "Error opening logfile '$f_log' : $!" };
@@ -958,4 +964,16 @@ sub _error{
 	chomp $message;
 	print STDERR $message."\n";
 	exit $exit;
+}
+
+sub availableDovecotVersion{
+  foreach(`apt-cache policy dovecot-common`){
+    if($_ =~ /Candidate:\s+(\S+)/){
+      my $version = $1; 
+      $version =~ s/^\d+://;
+      return $version;
+    }   
+  }
+  print STDERR "Couldn't determine available Dovecot version";
+  return "0";
 }
