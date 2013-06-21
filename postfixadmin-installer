@@ -296,7 +296,7 @@ protocol pop3 {
 
 # 'plain' here doesn't override the disble_plaintext_auth_default of 'yes'.
 # you should add any other auth mechanisms you want
-#auth_mechanisms = plain
+auth_mechanisms = plain login
 userdb {
   driver = sql
   args = /etc/dovecot/dovecot-sql.conf
