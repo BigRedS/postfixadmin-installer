@@ -90,7 +90,7 @@ my $postfixMasterDotCfBackupFile = "/etc/postfix/.bak_${date}_master.cf";
 my $saslauthdFile = "/etc/default/saslauthd";
 my $saslauthdBackupFile = "/etc/default/.bak_${date}_saslauthd";
 
-# This is the dir under which the mailboxes are created, as "/var/vmail/mail/domain/<email-address>/Maildir
+# This is the dir under which the mailboxes are created, as "/var/lib/vmail/domain/<email-address>/Maildir
 my $mailboxDir = "/var/lib/vmail";
 
 # This is the user that postfix and dovecot (and whatever else) will use to interfere with the db. 
