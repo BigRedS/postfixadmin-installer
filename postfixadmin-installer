@@ -12,7 +12,7 @@
 
 # Written by Avi (@avi.co) in 2011
 
-#Depends: libwww-perl, mysql-server, postfix
+#Depends: libwww-perl, (mysql-server|mariadb-server), postfix
 
 use strict;
 use File::Copy;
@@ -126,9 +126,20 @@ my $packages = "dovecot-common postfix-mysql libapache2-mod-php5 php5-mysql php5
 # postfix and mysql-server both require human-interaction to install, so we insist it's done before 
 # this script runs. There's probably a more elegant way of doing this. This also forces (or at least 
 # encourages) removal of the old mailer first.
-my @installed = grep(/^ii/,`dpkg -l postfix mysql-server libwww-perl`);
-unless ($#installed >= 2){
-	print STDERR "I need the libwww-perl, postfix and mysql-server packages installed and configured before I can begin. At least one of them wasn't found. Aborting.";
+
+my @missingPackages;
+unless(grep(/^ii/, `dpkg -l postfix`)){
+	push(@missingPackages, "postfix");
+}
+unless(grep(/^ii/, `dpkg -l libwww-perl`)){
+	push(@missingPackages, "libwww-perl");
+}
+unless( (grep(/^ii/, `dpkg -l mysql-server`)) or (grep(/^ii/, `dpkg -l mariadb-server`)) ){
+	push(@missingPackages, "mysql-server or mariadb-server");
+}
+
+if($#missingPackages > 0){
+	print STDERR "Missing packages: ".join(" ", @missingPackages).". Please install these and retry\n";
 	exit 1;
 }
 
