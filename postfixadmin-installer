@@ -149,7 +149,7 @@ if($@){
 
 #### Postfixadmin-specific config  # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
 
-my $postfixadminURL = "http://downloads.sourceforge.net/project/postfixadmin/postfixadmin/postfixadmin-2.3.5/postfixadmin-2.3.5.tar.gz?r=http%3A%2F%2Fsourceforge.net%2Fprojects%2Fpostfixadmin%2F&ts=1303232343&use_mirror=ignum";
+my $postfixadminURL = "http://downloads.sourceforge.net/project/postfixadmin/postfixadmin/postfixadmin-2.3.6/postfixadmin-2.3.6.tar.gz?r=http%3A%2F%2Fsourceforge.net%2Fprojects%2Fpostfixadmin%2F%3Fsource%3Ddirectory&ts=1389454145&use_mirror=netcologne";
 my $postfixadminDir = "/var/www/postfixadmin";
 
 my ($postfixadminPasswordPlain, $postfixadminPasswordHash) = postfixadminCreatePassword();
