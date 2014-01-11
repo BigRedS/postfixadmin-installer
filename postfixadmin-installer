@@ -268,7 +268,8 @@ connect = host=$dbhost dbname=$dbname user=$dbuser password=$dbpass
 driver = mysql
 default_pass_scheme = MD5-CRYPT
 password_query = SELECT username AS user,password FROM mailbox WHERE username = '%u' AND active='1'
-user_query = SELECT maildir, $uid AS uid, 122 AS gid FROM mailbox WHERE username = '%u' AND active='1'
+user_query = SELECT concat('/var/lib/vmail/', maildir) as home, 999 AS uid, 122 AS gid FROM mailbox WHERE username = '%u' and active='1'
+
 EOF
 }
 
@@ -280,7 +281,7 @@ sub dovecotDotConf(){
 	return <<EOF;
 protocols = imap pop3
 log_timestamp = "%Y-%m-%d %H:%M:%S "
-mail_location = maildir:/var/lib/vmail/%d/%n
+mail_location:~
 mail_privileged_group = $unixUser
 # This should match that of the owner of the $mailboxDir hierarchy, and 
 # be the same as the one postfix uses.
