@@ -18,7 +18,8 @@ Just download and run:
 	# perl ./postfixadmin-installer
 
 You will be prompted for MySQL credentials if the debian-sys-maint ones can't be 
-found or are found to not work.
+found or are found to not work. At the end of the script you will be given the
+generated setup password to use to set up the first admin user.
 
 If `hostname -f` doesn't return your FQDN (used to generate the autoresponder address 
 and links to the installed system) you can pass it as the argument to the script:
@@ -31,11 +32,12 @@ Config
 The script is split in two. The upper, larger, part is where all the config 
 is set, and it's mostly fairly well commented. A quick run down of the defaults:
 
-* Mailboxes go in `/var/lib/vmail/<domain>/<local-part>
-* MySQL stuff goes in a db called `vmail` accessed by a user `vmail` from `localhost`.
+* Mailboxes go in `/var/lib/vmail/<domain>/<local-part>`
+* MySQL stuff goes in a db called `vmail` accessible by a user `vmail` from `localhost`.
 * Filesystem stuff is all done as `vmail`:`vmail` by both Dovecot and Postfix.
-* Postfixadmin 2.3.3 is downloaded from Sourceforge. It is extracted into 
-  `/var/www/postfixadmin`.
+* Postfixadmin 2.3.6 is downloaded from Sourceforge. It is extracted into 
+  `/var/www/postfixadmin` and Apache is not reconfigured at all; you might need to 
+	configure an alias to make this work.
 * imap, imaps, pop3 and pop3s are all enabled.
 * Plaintext imap(s) & pop3(s) auth is *enabled* (because it's really handy for testing).
 * Plaintext auth for imap and pop is default when enabled. 
@@ -51,16 +53,12 @@ Patches welcome :)
 Compatibility
 -------------
 This is known to work (i.e. tested succesfully) on:
-* Debian Squeeze
-* Debian Lenny
-* Ubuntu Lucid
-
-This is known to not work (generally because Dovecot moves things), and plans are afoot 
-to fix it on:
+* Debian Jessie
 * Debian Wheezy
-* Ubuntu Precise
+* Debian Squeeze w/Dovecot 2.x
 
-This is known to not work, and likely never will, on:
-* Ubuntu Oneiric
+This doesn't work with Dovecot 1.x; the merging of the 'wheezy' branch broke this. If you want
+the version that *does* work with Dovecot 1.x (specifically Lenny and Squeeze), try it at
+commit f308a7550fe8d8e1b81da7a26e12893ed5db5844
 
 I'd be happy to hear from anyone with any results on other Debian-derived distros.
