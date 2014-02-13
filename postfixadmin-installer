@@ -396,6 +396,20 @@ if ( (!$mysqlhost || !$mysqluser )){
 	}
 }
 
+print "Testing for existing install...";
+if( -d $postfixadminDir ){
+	opendir(my $dh, $postfixadminDir);
+	my $count = 0;
+	while( my $file = readdir($dh)){
+		next if $file =~ m#^\.\.?$#;
+		$count++;
+		if($count > 1){
+			printRed("Found install in '$postfixadminDir'; aborting\n");
+			exit;
+		}
+	}
+}
+
 
 start("Installing packages (this can take a few minutes)");
 my $cmd = "apt-get -qy install $packages";
