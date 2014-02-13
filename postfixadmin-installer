@@ -9,7 +9,9 @@
 # get it.
 # Tries to get the MySQL debian-sys-maint credentials and use them. Currently, I'm not quite 
 # sure what it does if it doesn't get them :)
-
+#
+# If you don't want coloured output, set the environment variable PFA_NOCOLOUR to 1
+#
 # Written by Avi (@avi.co) in 2011
 
 #Depends: libwww-perl, (mysql-server|mariadb-server), postfix
@@ -18,6 +20,7 @@ use strict;
 use File::Copy;
 use Cwd;
 use Digest::SHA qw/sha1_hex/;
+use Term::ANSIColor;
 
 if(availableDovecotVersion() !~ /^2\./){
   print STDERR "This script will not work on versions of Dovecot other than 2.x (you have ".availableDovecotVersion().")\nExiting.\n";
@@ -62,7 +65,9 @@ if ($ARGV[0] =~ /.+/){
 }else{
 	$fqdn = `hostname -f`;
 	chomp $fqdn;
-	print "FQDN detected as '$fqdn'. To change this pass it as the only argument:\n";
+	print "FQDN detected as \n";
+	printYellow($fqdn, "\n");
+	print "To change this pass it as the only argument:\n";
 	print "  postfixadmin-installer mail.company.com\n";
 	print "carrying on in two seconds...\n";
 	sleep(2);
@@ -165,16 +170,13 @@ my $postfixadminDir = "/var/www/postfixadmin";
 
 my ($postfixadminPasswordPlain, $postfixadminPasswordHash) = postfixadminCreatePassword();
 
-my $postfixadminManual = <<EOF;
-All done, now you can go and visit
-  http://$fqdn/postfixadmin/setup.php
-and create a new admin user using this setup password:
-  $postfixadminPasswordPlain
-
-Have Fun!
-
-EOF
-
+sub printEndInstructions{
+	print "All done, now you can go and visit\n    ";
+	printBlue("http://$fqdn/postfixadmin/setup.php");
+	print "\nand create a new admin user using this setup password:\n\t";
+	printYellow($postfixadminPasswordPlain);
+	print "\n\nHave Fun!\n\n";
+}
 
 #### Postfix-specific config # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
 
@@ -384,13 +386,13 @@ print "Guessing MySQL credentials...";
 if ( (!$mysqlhost || !$mysqluser )){
 	($mysqlhost, $mysqluser, $mysqlpass) = &getMySQLCredentials();
 	if (!$mysqlpass){
-		print "Failed\n";
+		printRed("Failed\n");
 		print "\tPlease enter the password for mysql user \'$mysqluser\':\n";
 		system('stty','-echo');
 		chop($mysqlpass=<STDIN>);
 		system('stty','echo');
 	}else{
-		print "Done\n";
+		printGreen("Done\n");
 	}
 }
 
@@ -600,7 +602,7 @@ if ($write == 1){
 		succeed();
 	}
 }else{
-	print "Skipping $postfixMasterDotCfFile\n";
+	printYellow("Skipping $postfixMasterDotCfFile\n");
 }
 
 start("Creating auth socket dir");
@@ -795,47 +797,47 @@ print "\n\n\n";
 print "Restarting postfix...";
 system("/etc/init.d/postfix restart 2>/dev/null >/dev/null");
 if ($? != 0){
-	print " ERROR\n";
+	printRed(" ERROR\n");
 }else{
-	print " done\n";
+	printGreen(" done\n");
 }
 
 print "Restarting dovecot...";
 system("/etc/init.d/dovecot restart 2>/dev/null >/dev/null");
 if ($? != 0){
-	print " ERROR\n";
+	printRed(" ERROR\n");
 }else{
-	print " done\n";
+	printGreen(" done\n");
 }
 
 print "Starting saslauthd...";
 system("/etc/init.d/saslauthd start 2>/dev/null >/dev/null");
 if ($? != 0){
-	print " ERROR\n";
+	printRed(" ERROR\n");
 }else{
-	print " done\n";
+	printGreen(" done\n");
 }
 
 print "Restarting Apache2...";
-system("apache2ctl restart 2>&1 > /dev/null");
+system("apache2ctl restart 2>/dev/null > /dev/null");
 
 if ($? != 0){
-	print " ERROR\n";
+	printRed(" ERROR\n");
 }else{
-	print " done\n";
+	printGreen(" done\n");
 }
 
 print "Restarting Munin...";
 system("/etc/init.d/munin-node restart");
 if($? != 0){
-	print " ERROR\n";
+	printRed(" ERROR\n");
 }else{
-	print " done\n";
+	printGreen(" done\n");
 }
 
 print "\n\n";
 
-print $postfixadminManual;
+printEndInstructions();
 exit 0;
 
 
@@ -929,13 +931,13 @@ sub start{
 }
 sub fail{
 	my $explanation = shift;
-	print "FAILED";
+	printRed("FAILED");
 	print ": $explanation" if $explanation =~ /.+/;
 	print "\n";
 	push(@errors, $task);
 }
 sub succeed{
-	print "Done\n";
+	printGreen("Done\n");
 }
 
 sub runTest{
@@ -995,4 +997,44 @@ sub availableDovecotVersion{
   }
   print STDERR "Couldn't determine available Dovecot version";
   return "0";
+}
+
+sub printRed{
+	if(1 == $ENV{'PFA_NOCOLOUR'}){
+		print @_;
+		return
+	}
+	print color 'red';
+	print @_;
+	print color 'reset';
+}
+
+sub printYellow{
+	if(1 == $ENV{'PFA_NOCOLOUR'}){
+		print @_;
+		return
+	}
+	print color 'yellow';
+	print @_;
+	print color 'reset';
+}
+
+sub printGreen{
+	if(1 == $ENV{'PFA_NOCOLOUR'}){
+		print @_;
+		return
+	}
+	print color 'green';
+	print @_;
+	print color 'reset';
+}
+
+sub printBlue{
+	if(1 == $ENV{'PFA_NOCOLOUR'}){
+		print @_;
+		return
+	}
+	print color 'blue';
+	print @_;
+	print color 'reset';
 }
