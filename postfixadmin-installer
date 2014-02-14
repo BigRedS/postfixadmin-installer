@@ -10,8 +10,6 @@
 # Tries to get the MySQL debian-sys-maint credentials and use them. Currently, I'm not quite 
 # sure what it does if it doesn't get them :)
 #
-# If you don't want coloured output, set the environment variable PFA_NOCOLOUR to 1
-#
 # Written by Avi (@avi.co) in 2011
 
 #Depends: libwww-perl, (mysql-server|mariadb-server), postfix
@@ -37,6 +35,7 @@ my $libmailsender = "http://avi.co/stuff/libmail-sender-perl_0.8.22-1_all.deb";
 my $fqdn;
 my $help;
 my $overwrite = 0;
+my $colour=1;
 
 # This is the user that postfix and dovecot (and whatever else) will use to interfere with the db. 
 my $dbuser = "vmail";
@@ -46,6 +45,7 @@ my $dbpass = createPassword(25);
 chomp $dbpass;
 
 GetOptions(
+  'colour!'          => \$colour,
   'overwrite'        => \$overwrite,
 	'log!'	           => \$writeLog,
 	'logfile=s'        => \$f_log,
@@ -76,13 +76,13 @@ postfixadmin-installer
 usage:
   postfixadmin-installer [option]
 
-
+  --nocolour             Don't print coloured text
   --fqdn <fqdn>          set FQDN (used in links in postfixadmin UI).
   --help                 show this help.
   --nolog                don't log
   --logfile <path>       write logfile at path
   --libmailsender <url>  URL to Mail::Sender deb package
-	--overwrite            Overwrite detected existing installs
+  --overwrite            Overwrite detected existing installs
 
  Mysql admin details: these are the details the script will use to log in
                       
@@ -1084,7 +1084,7 @@ sub availableDovecotVersion{
 }
 
 sub printRed{
-	if(1 == $ENV{'PFA_NOCOLOUR'}){
+	if(0 == $colour){
 		print @_;
 		return
 	}
@@ -1094,7 +1094,7 @@ sub printRed{
 }
 
 sub printYellow{
-	if(1 == $ENV{'PFA_NOCOLOUR'}){
+	if(0 == $colour){
 		print @_;
 		return
 	}
@@ -1104,7 +1104,7 @@ sub printYellow{
 }
 
 sub printGreen{
-	if(1 == $ENV{'PFA_NOCOLOUR'}){
+	if(0 == $colour){
 		print @_;
 		return
 	}
@@ -1114,7 +1114,7 @@ sub printGreen{
 }
 
 sub printBlue{
-	if(1 == $ENV{'PFA_NOCOLOUR'}){
+	if(0 == $colour){
 		print @_;
 		return
 	}
