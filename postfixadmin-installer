@@ -21,19 +21,93 @@ use File::Copy;
 use Cwd;
 use Digest::SHA qw/sha1_hex/;
 use Term::ANSIColor;
+use Getopt::Long;
 
 if(availableDovecotVersion() !~ /^2\./){
   print STDERR "This script will not work on versions of Dovecot other than 2.x (you have ".availableDovecotVersion().")\nExiting.\n";
   exit 1;
 }
 
-
 my $f_log = '/tmp/postfixadmin-installer.log';
 my $writeLog = 1;
-eval{ open(my $f, ">", $f_log) or die "Error opening logfile '$f_log' : $!" };
-if($@){
-	_warn($@);
+my $mysqlhost = undef;
+my $mysqluser = undef;
+my $mysqlpass = undef;
+my $libmailsender = "http://avi.co/stuff/libmail-sender-perl_0.8.22-1_all.deb";
+my $fqdn;
+my $help;
+
+# This is the user that postfix and dovecot (and whatever else) will use to interfere with the db. 
+my $dbuser = "vmail";
+my $dbhost = "localhost";
+my $dbname = "vmail";
+my $dbpass = createPassword(25);
+chomp $dbpass;
+
+GetOptions(
+	'log!'	           => \$writeLog,
+	'logfile=s'        => \$f_log,
+	'mysqluser=s'      => \$mysqluser,
+	'mysqlpass=s'      => \$mysqlpass,
+	'mysqlhost=s'      => \$mysqlhost,
+	'libmailsender=s'  => \$libmailsender,
+	'fqdn=s'           => \$fqdn,
+	'help|h'           => \$help,
+	'pfa-mysqluser=s'  => \$dbuser,
+	'pfa-mysqlpass=s'  => \$dbpass,
+	'pfa-mysqlhost=s'  => \$dbhost,
+	'pfa-mysqldb=s'    => \$dbname,
+);
+
+unless($fqdn =~ /.+/){
+	$fqdn = `hostname -f`;
+	chomp $fqdn;
+}
+
+if($help){
+  print <<EOF;
+
+postfixadmin-installer
+
+  Installs postfixadmin
+
+usage:
+  postfixadmin-installer [option]
+
+
+  --fqdn <fqdn>          set FQDN (used in links in postfixadmin UI).
+  --help                 show this help.
+  --nolog                don't log
+  --logfile <path>       write logfile at path
+  --libmailsender <url>  URL to Mail::Sender deb package
+
+ Mysql admin details: these are the details the script will use to log in
+                      
+  --mysqlhost   host
+  --mysqluser   username
+  --mysqlpass   password
+
+  If none are set, will use the contents of /etc/mysql/debian.cnf to auth with the 
+  db. If you set a password here you must also set a user.
+
+ Set postfixadmin's MySQL details; these are the details PFA will use day-to-day:
+  --pfa-mysqlhost   host default: 
+  --pfa-mysqluser   username
+  --pfa-mysqlpass   password
+  --pfa-mysqldb     database
+
+EOF
+exit;
+}
+
+
+
+if($writeLog > 0){
+	eval{ open(my $f, ">", $f_log) or die "Error opening logfile '$f_log' : $!" };
+	if($@){
+		_warn($@);
 	$writeLog = 0;
+	}
 }
 	
 my @errors;
@@ -45,35 +119,26 @@ $|++;
 my ($y,$m,$d)=(localtime(time))[5,4,3];
 my $date = $y + 1900 ."-".sprintf("%02d",$m + 1)."-$d";
 
-# These are the credentials we use to log in to MySQL to create the db and the user. For the details
-# of the users we create, see $db* lower down.
-# If *all three* are set to undef, then we'll parse /etc/mysql/debian.cnf to get these (and if that doesn't
-# work resort to `-u root -h localhost` and prompting for the password ). 
-# If 'host' is set to undef we'll use localhost.
-# If the password is set to undef, then we'll prompt for the root password later
-my $mysqlhost = undef;
-my $mysqluser = undef;
-my $mysqlpass = undef;
 
 my $libmailsender = "http://avi.co/stuff/libmail-sender-perl_0.8.22-1_all.deb";
 my $libmailsender_tmpfilename = "/tmp/libmail-sender-perl_0.8.22-1_all.deb";
 
-# This is used as the from domain for the vacation auto-responder. You might want to change it:
-my $fqdn;
-if ($ARGV[0] =~ /.+/){
-	$fqdn = $ARGV[0];
-}else{
-	$fqdn = `hostname -f`;
-	chomp $fqdn;
-	print "FQDN detected as \n";
-	printYellow($fqdn, "\n");
-	print "To change this pass it as the only argument:\n";
-	print "  postfixadmin-installer mail.company.com\n";
-	print "carrying on in two seconds...\n";
-	sleep(2);
-	print "going\n";
-}
 
+print "Postfixadmin-installer\n\n";
+print "Installing;";
+if($writeLog){
+	print " writing a log to $f_log.\n";
+}else{
+	print " not writing a log file.\n";
+}
+print "\nFQDN guessed as ";
+printYellow($fqdn);
+print "\n\n";
+print "Run with --help to see options; carrying on in two seconds...";
+sleep(1);
+print ".";
+sleep(1);
+print "Carrying on! \n";
 # There's a bunch of faffing with files. Every file we edit is backed up first, unless it's 
 # (almost) guaranteed to be either not there already or not wanted (like postfix's mysql config).
 
@@ -98,12 +163,6 @@ my $saslauthdBackupFile = "/etc/default/.bak_${date}_saslauthd";
 # This is the dir under which the mailboxes are created, as "/var/lib/vmail/domain/<email-address>/Maildir
 my $mailboxDir = "/var/lib/vmail";
 
-# This is the user that postfix and dovecot (and whatever else) will use to interfere with the db. 
-my $dbuser = "vmail";
-my $dbhost = "localhost";
-my $dbname = "vmail";
-my $dbpass = createPassword(25);
-chomp $dbpass;
 
 #A glob matching the munin plugins we wish to enable:
 my $muninPluginGlob = "/usr/share/munin/plugins/postfix*";
