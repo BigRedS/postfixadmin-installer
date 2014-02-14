@@ -26,7 +26,7 @@ if(availableDovecotVersion() !~ /^2\./){
   exit 1;
 }
 
-our $VERSION = "0.20140214";
+our $VERSION = "0.20140214 (Wheezy; Dovecot 2.x)";
 
 my $f_log = '/tmp/postfixadmin-installer.log';
 my $writeLog = 1;
