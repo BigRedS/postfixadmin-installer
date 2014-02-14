@@ -552,7 +552,7 @@ if ($@){
 }else{
 	print $f "$vacationDomain $vacationUser\n";
 	close($f);
-	my $cmd = "postmap /etc/postfix/transport";
+	my $cmd = "postmap /etc/postfix/transport 2>/dev/null >/dev/null";
 	if(run($cmd) != 0){
 		fail();
 	}else{
