@@ -57,8 +57,9 @@ This is known to work (i.e. tested succesfully) on:
 * Debian Wheezy
 * Debian Squeeze w/Dovecot 2.x
 
-This doesn't work with Dovecot 1.x; the merging of the 'wheezy' branch broke this. If you want
-the version that *does* work with Dovecot 1.x (specifically Lenny and Squeeze), try it at
-commit f308a7550fe8d8e1b81da7a26e12893ed5db5844
+This doesn't work with Dovecot 1.x; the merging of the 'wheezy' branch broke this. 
+
+If you want the version that *does* work with Dovecot 1.x (specifically Lenny and 
+Squeeze), try it at tag Dovecot_1.x (see 'Releases' on GitHub).
 
 I'd be happy to hear from anyone with any results on other Debian-derived distros.
