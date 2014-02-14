@@ -19,12 +19,14 @@ use File::Copy;
 use Cwd;
 use Digest::SHA qw/sha1_hex/;
 use Term::ANSIColor;
-use Getopt::Long;
+use Getopt::Long qw/:config auto_version/;
 
 if(availableDovecotVersion() !~ /^2\./){
   print STDERR "This script will not work on versions of Dovecot other than 2.x (you have ".availableDovecotVersion().")\nExiting.\n";
   exit 1;
 }
+
+our $VERSION = "0.20140214";
 
 my $f_log = '/tmp/postfixadmin-installer.log';
 my $writeLog = 1;
@@ -36,6 +38,7 @@ my $fqdn;
 my $help;
 my $overwrite = 0;
 my $colour=1;
+my $version=0;
 
 # This is the user that postfix and dovecot (and whatever else) will use to interfere with the db. 
 my $dbuser = "vmail";
@@ -59,7 +62,13 @@ GetOptions(
 	'pfa-mysqlpass=s'  => \$dbpass,
 	'pfa-mysqlhost=s'  => \$dbhost,
 	'pfa-mysqldb=s'    => \$dbname,
+	'version'          => \$version,
 );
+
+if(1 == $version){
+	print "postfixadmin-installer version $VERSION\n";
+	exit;
+}
 
 unless($fqdn =~ /.+/){
 	$fqdn = `hostname -f`;
