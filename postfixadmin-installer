@@ -36,6 +36,7 @@ my $mysqlpass = undef;
 my $libmailsender = "http://avi.co/stuff/libmail-sender-perl_0.8.22-1_all.deb";
 my $fqdn;
 my $help;
+my $overwrite = 0;
 
 # This is the user that postfix and dovecot (and whatever else) will use to interfere with the db. 
 my $dbuser = "vmail";
@@ -45,6 +46,7 @@ my $dbpass = createPassword(25);
 chomp $dbpass;
 
 GetOptions(
+  'overwrite'        => \$overwrite,
 	'log!'	           => \$writeLog,
 	'logfile=s'        => \$f_log,
 	'mysqluser=s'      => \$mysqluser,
@@ -80,6 +82,7 @@ usage:
   --nolog                don't log
   --logfile <path>       write logfile at path
   --libmailsender <url>  URL to Mail::Sender deb package
+	--overwrite            Overwrite detected existing installs
 
  Mysql admin details: these are the details the script will use to log in
                       
@@ -127,9 +130,15 @@ my $libmailsender_tmpfilename = "/tmp/libmail-sender-perl_0.8.22-1_all.deb";
 print "Postfixadmin-installer\n\n";
 print "Installing;";
 if($writeLog){
-	print " writing a log to $f_log.\n";
+	print " writing a log to $f_log";
 }else{
-	print " not writing a log file.\n";
+	print " not writing a log file";
+}
+if($overwrite){
+	printRed(", overwriting existing installations");
+	print "\n";
+}else{
+	print ", aborting if another installtion is detected\n";
 }
 print "\nFQDN guessed as ";
 printYellow($fqdn);
@@ -452,6 +461,22 @@ if ( (!$mysqlhost || !$mysqluser )){
 		system('stty','echo');
 	}else{
 		printGreen("Done\n");
+	}
+}
+
+unless($overwrite > 0){
+	print "Testing for existing install...";
+	if( -d $postfixadminDir ){
+		opendir(my $dh, $postfixadminDir);
+		my $count = 0;
+		while( my $file = readdir($dh)){
+			next if $file =~ m#^\.\.?$#;
+			$count++;
+			if($count > 1){
+				printRed("Found install in '$postfixadminDir'; aborting (run with --overwrite to skip this; --help for all options\n");
+				exit;
+			}
+		}
 	}
 }
 
