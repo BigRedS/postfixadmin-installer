@@ -5,7 +5,7 @@ Script to automate the installation and configuration of a postfixadmin
 system on a debian-alike OS (it uses apt-get).
 
 You will need a working Postfix and MySQL server (and ideally knowledge of
-the root password for the latter), and LWP::Simple (which is libwww-perl in
+the root password for the latter), and `LWP::Simple` (which is `libwww-perl` in
 dpkg). 
 
 Installation
@@ -14,17 +14,18 @@ Installation
 Just download and run:
 
 	# apt-get install postfix mysql-server libwww-perl
-	# wget https://raw.github.com/BigRedS/postfixadmin-installer/master/postfixadmin-installer --no-check-certificate
+  # GET https://raw.github.com/BigRedS/postfixadmin-installer/master/postfixadmin-installer > postfixadmin-installer
 	# perl ./postfixadmin-installer
 
 You will be prompted for MySQL credentials if the debian-sys-maint ones can't be 
 found or are found to not work. At the end of the script you will be given the
 generated setup password to use to set up the first admin user.
 
-If `hostname -f` doesn't return your FQDN (used to generate the autoresponder address 
-and links to the installed system) you can pass it as the argument to the script:
+There's a few options you can pass the script; use `--help` to see them. The only one 
+that's particularly likely to be useful is `--fqdn`; if this isn't given then the 
+output of `hostname -f` is used. This value is used in a few places in the PostfixAdmin 
+UI; nothing other than links will break if you get it wrong.
 
-       # perl ./postfixadmin-installer mail.mydomain.net
 
 Config
 ------
@@ -45,10 +46,7 @@ is set, and it's mostly fairly well commented. A quick run down of the defaults:
 To Do
 -----
 
-Patches welcome :)
-* Use Postfixadmin .deb package. Perhaps stick it in my deb repo so I can always get the 
-  latest one.
-* Neaten up my PFA patches, give options to use those, too.
+Patches welcome :) Also, file issues above.
 
 Compatibility
 -------------
@@ -60,6 +58,8 @@ This is known to work (i.e. tested succesfully) on:
 This doesn't work with Dovecot 1.x; the merging of the 'wheezy' branch broke this. 
 
 If you want the version that *does* work with Dovecot 1.x (specifically Lenny and 
-Squeeze), try it at tag Dovecot_1.x (see 'Releases' on GitHub).
+Squeeze), try it at tag 'lenny' or 'wheezy' (see 'Releases' on GitHub); I'm not 
+*that* interested in feature-adding to those, but if something does go wrong do 
+let me know.
 
-I'd be happy to hear from anyone with any results on other Debian-derived distros.
+I'm interested in compatibility with any other Debian-derived distros, too.
