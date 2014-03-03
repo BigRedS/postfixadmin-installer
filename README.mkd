@@ -11,11 +11,11 @@ dpkg).
 Installation
 ------------
 
-Just download and run:
+Just download and run as root:
 
-  # apt-get install postfix mysql-server libwww-perl
-  # GET https://raw.github.com/BigRedS/postfixadmin-installer/master/postfixadmin-installer > postfixadmin-installer
-  # perl ./postfixadmin-installer
+    apt-get install postfix mysql-server libwww-perl
+    GET https://raw.github.com/BigRedS/postfixadmin-installer/master/postfixadmin-installer > postfixadmin-installer
+    perl ./postfixadmin-installer
 
 You will be prompted for MySQL credentials if the debian-sys-maint ones can't be 
 found or are found to not work. At the end of the script you will be given the
