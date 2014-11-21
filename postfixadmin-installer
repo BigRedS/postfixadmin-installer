@@ -360,7 +360,7 @@ sub dovecotDotConf(){
 	return <<EOF;
 protocols = imap pop3
 log_timestamp = "%Y-%m-%d %H:%M:%S "
-mail_location:~
+mail_location = maildir:~
 mail_privileged_group = $unixUser
 # This should match that of the owner of the $mailboxDir hierarchy, and 
 # be the same as the one postfix uses.
