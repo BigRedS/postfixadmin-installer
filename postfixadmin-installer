@@ -373,16 +373,11 @@ disable_plaintext_auth = no
 # auth_debug=yes
 
 ssl = yes
-
-protocol imap {
-  ssl_cert=</etc/ssl/certs/ssl-cert-snakeoil.pem
-  ssl_key=</etc/ssl/private/ssl-cert-snakeoil.key
-}
+ssl_cert=</etc/ssl/certs/ssl-cert-snakeoil.pem
+ssl_key=</etc/ssl/private/ssl-cert-snakeoil.key
 
 protocol pop3 {
   pop3_uidl_format = %08Xu%08Xv
-  ssl_cert=</etc/ssl/certs/ssl-cert-snakeoil.pem
-  ssl_key=</etc/ssl/private/ssl-cert-snakeoil.key
 }
 
 # 'plain' here doesn't override the disble_plaintext_auth_default of 'yes'.
