@@ -319,7 +319,11 @@ smtpd_sasl_path = private/auth
 broken_sasl_auth_clients = yes
 smtpd_sasl_auth_enable = yes
 smtpd_sasl_local_domain =
-smtpd_recipient_restrictions = permit_mynetworks, permit_sasl_authenticated, reject_unauth_destination 
+smtpd_recipient_restrictions = permit_mynetworks, 
+				permit_sasl_authenticated,
+				reject_rbl_client zen.spamhaus.org,
+				reject_rbl_client bl.spamcop.net,
+				reject_unauth_destination 
 
 # # # End insertion by postfixdovecotmysql script $date # # # 
 
