@@ -36,6 +36,9 @@ if ( $pfa_os_release == 'jessie' ) { $dovecot_package_name = 'dovecot-core'; }
 my $postfixadminDir = "/var/www/postfixadmin";
 if ( $pfa_os_release == "jessie") { $postfixadminDir = "/var/www/html/postfixadmin"; }
 
+my $dovecot_package_opt = ''
+if ( $pfa_os_release == "jessie") { $dovecot_package_opt = 'dovecot-mysql' }
+
 # Check dovecot availability
 if(availableDovecotVersion() !~ /^2\./){
   print STDERR "This script will not work on versions of Dovecot other than 2.x (you have ".availableDovecotVersion().")\nExiting.\n";
@@ -224,7 +227,7 @@ $vacationMasterDotCf .= '  flags=Rq user=vacation argv=/var/spool/vacation/vacat
 
 # Packages we depend upon. Remember that the script can't cope with installers that need interaction. 
 # Any that do need adding below
-my $packages = "$dovecot_package_name postfix-mysql libapache2-mod-php5 php5-mysql php5-imap libsasl2-2 libsasl2-modules sasl2-bin libdbd-mysql-perl libemail-valid-perl libmime-perl liblog-log4perl-perl liblog-dispatch-perl libgetopt-argvfile-perl libmime-charset-perl libmime-encwords-perl dovecot-imapd dovecot-pop3d ssl-cert";
+my $packages = "$dovecot_package_name postfix-mysql libapache2-mod-php5 php5-mysql php5-imap libsasl2-2 libsasl2-modules sasl2-bin libdbd-mysql-perl libemail-valid-perl libmime-perl liblog-log4perl-perl liblog-dispatch-perl libgetopt-argvfile-perl libmime-charset-perl libmime-encwords-perl dovecot-imapd dovecot-pop3d ssl-cert $dovecot_package_opt";
 
 # postfix and mysql-server both require human-interaction to install, so we insist it's done before 
 # this script runs. There's probably a more elegant way of doing this. This also forces (or at least 
