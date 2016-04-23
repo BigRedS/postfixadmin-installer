@@ -21,12 +21,28 @@ use Digest::SHA qw/sha1_hex/;
 use Term::ANSIColor;
 use Getopt::Long qw/:config auto_version/;
 
+# Check OS release and dovecot availablity. 
+my $pfa_os_release = 'other_noissue';
+if ( -f "/etc/issue" ) {
+	if (`grep "Linux 8" /etc/issue`) { $pfa_os_release = 'jessie'; }
+	elsif (`grep "Linux 7" /etc/issue`) { $pfa_os_release = 'wheezy'; }
+	else { $pfa_os_release = 'other'; }
+}
+
+# Define debian release specific variables
+my $dovecot_package_name = 'dovecot-common';
+if ( $pfa_os_release == 'jessie' ) { $dovecot_package_name = 'dovecot-core'; }
+
+my $postfixadminDir = "/var/www/postfixadmin";
+if ( $pfa_os_release == "jessie") { $postfixadminDir = "/var/www/html/postfixadmin"; }
+
 if(availableDovecotVersion() !~ /^2\./){
   print STDERR "This script will not work on versions of Dovecot other than 2.x (you have ".availableDovecotVersion().")\nExiting.\n";
   exit 1;
 }
 
-our $VERSION = "0.20140214 (Wheezy; Dovecot 2.x)";
+
+our $VERSION = "0.20160423 (Jessie; Dovecot 2.x)";
 
 my $f_log = '/tmp/postfixadmin-installer.log';
 my $writeLog = 1;
@@ -135,7 +151,6 @@ my $date = $y + 1900 ."-".sprintf("%02d",$m + 1)."-$d";
 my $libmailsender = "http://avi.co/stuff/libmail-sender-perl_0.8.22-1_all.deb";
 my $libmailsender_tmpfilename = "/tmp/libmail-sender-perl_0.8.22-1_all.deb";
 
-
 print "Postfixadmin-installer\n\n";
 print "Installing;";
 if($writeLog){
@@ -203,7 +218,7 @@ $vacationMasterDotCf .= '  flags=Rq user=vacation argv=/var/spool/vacation/vacat
 
 # Packages we depend upon. Remember that the script can't cope with installers that need interaction. 
 # Any that do need adding below
-my $packages = "dovecot-common postfix-mysql libapache2-mod-php5 php5-mysql php5-imap libsasl2-2 libsasl2-modules sasl2-bin libdbd-mysql-perl libemail-valid-perl libmime-perl liblog-log4perl-perl liblog-dispatch-perl libgetopt-argvfile-perl libmime-charset-perl libmime-encwords-perl dovecot-imapd dovecot-pop3d ssl-cert";
+my $packages = "$dovecot_package_name postfix-mysql libapache2-mod-php5 php5-mysql php5-imap libsasl2-2 libsasl2-modules sasl2-bin libdbd-mysql-perl libemail-valid-perl libmime-perl liblog-log4perl-perl liblog-dispatch-perl libgetopt-argvfile-perl libmime-charset-perl libmime-encwords-perl dovecot-imapd dovecot-pop3d ssl-cert";
 
 # postfix and mysql-server both require human-interaction to install, so we insist it's done before 
 # this script runs. There's probably a more elegant way of doing this. This also forces (or at least 
@@ -243,7 +258,7 @@ if($@){
 #### Postfixadmin-specific config  # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
 
 my $postfixadminURL = "http://downloads.sourceforge.net/project/postfixadmin/postfixadmin/postfixadmin-2.3.6/postfixadmin-2.3.6.tar.gz?r=http%3A%2F%2Fsourceforge.net%2Fprojects%2Fpostfixadmin%2F%3Fsource%3Ddirectory&ts=1389454145&use_mirror=netcologne";
-my $postfixadminDir = "/var/www/postfixadmin";
+#my $postfixadminDir = "/var/www/postfixadmin";
 
 my ($postfixadminPasswordPlain, $postfixadminPasswordHash) = postfixadminCreatePassword();
 
@@ -1080,7 +1095,7 @@ sub _error{
 }
 
 sub availableDovecotVersion{
-  foreach(`apt-cache policy dovecot-common`){
+  foreach(`apt-cache policy $dovecot_package_name`){
     if($_ =~ /Candidate:\s+(\S+)/){
       my $version = $1; 
       $version =~ s/^\d+://;
