@@ -849,9 +849,9 @@ succeed();
 
 
 start("Copying vacation script into place");
-$cmd = "cp /var/www/postfixadmin/VIRTUAL_VACATION/vacation.pl $vacationSpool";
+$cmd = "cp ${postfixadminDir}/VIRTUAL_VACATION/vacation.pl $vacationSpool";
 if (run($cmd) != 0){
-	fail("Error copying /var/www/postfixadmin/VIRTUAL_VACATION/vacation.pl to $vacationSpool : $!");
+	fail("Error copying ${postfixadminDir}/VIRTUAL_VACATION/vacation.pl to $vacationSpool : $!");
 }else{
 	succeed();
 }
