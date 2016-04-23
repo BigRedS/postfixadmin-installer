@@ -86,6 +86,11 @@ if(1 == $version){
 	exit;
 }
 
+if ( $< != 0 ) {
+print "This script must be run as root\n"; 
+exit (0);
+}
+
 unless($fqdn =~ /.+/){
 	$fqdn = `hostname -f`;
 	chomp $fqdn;
