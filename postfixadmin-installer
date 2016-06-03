@@ -31,13 +31,13 @@ if ( -f "/etc/issue" ) {
 
 # Define debian release specific variables
 my $dovecot_package_name = 'dovecot-common';
-if ( $pfa_os_release == 'jessie' ) { $dovecot_package_name = 'dovecot-core'; }
+if ( $pfa_os_release eq 'jessie' ) { $dovecot_package_name = 'dovecot-core'; }
 
 my $postfixadminDir = "/var/www/postfixadmin";
-if ( $pfa_os_release == "jessie") { $postfixadminDir = "/var/www/html/postfixadmin"; }
+if ( $pfa_os_release eq "jessie") { $postfixadminDir = "/var/www/html/postfixadmin"; }
 
 my $dovecot_package_opt = ''
-if ( $pfa_os_release == "jessie") { $dovecot_package_opt = 'dovecot-mysql' }
+if ( $pfa_os_release eq "jessie") { $dovecot_package_opt = 'dovecot-mysql' }
 
 # Check dovecot availability
 if(availableDovecotVersion() !~ /^2\./){
