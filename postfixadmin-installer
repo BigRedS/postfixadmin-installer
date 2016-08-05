@@ -36,7 +36,7 @@ if ( $pfa_os_release eq 'jessie' ) { $dovecot_package_name = 'dovecot-core'; }
 my $postfixadminDir = "/var/www/postfixadmin";
 if ( $pfa_os_release eq "jessie") { $postfixadminDir = "/var/www/html/postfixadmin"; }
 
-my $dovecot_package_opt = ''
+my $dovecot_package_opt = '';
 if ( $pfa_os_release eq "jessie") { $dovecot_package_opt = 'dovecot-mysql' }
 
 # Check dovecot availability
