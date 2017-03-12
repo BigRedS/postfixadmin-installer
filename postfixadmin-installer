@@ -904,6 +904,16 @@ foreach(glob($muninPluginGlob)){
 }
 succeed();
 
+my $templatesDir = $postfixadminDir."/templates_c";
+start("Setting permissions on smarty templates dir $templatesDir");
+$cmd = "chown www-data $templatesDir && chmod 750 $templatesDir";
+if(run($cmd) != 0){
+	fail("Error setting permissions (needs to be writeable-to by the webserver");
+}else{
+	succeed();
+}
+
+
 print "\n\n";
 print "\tRESTARTING SERVICES\n";
 print "\tI'm about to restart some services.\n\tI cannot check they've come back up successfully.\n\tYou need to do this yourself";
