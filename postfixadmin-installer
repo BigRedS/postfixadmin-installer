@@ -36,7 +36,7 @@ if ( $pfa_os_release eq 'jessie' ) { $dovecot_package_name = 'dovecot-core'; }
 my $postfixadminDir = "/var/www/postfixadmin";
 if ( $pfa_os_release eq "jessie") { $postfixadminDir = "/var/www/html/postfixadmin"; }
 
-my $dovecot_package_opt = ''
+my $dovecot_package_opt = '';
 if ( $pfa_os_release eq "jessie") { $dovecot_package_opt = 'dovecot-mysql' }
 
 # Check dovecot availability
@@ -266,8 +266,7 @@ if($@){
 
 #### Postfixadmin-specific config  # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
 
-my $postfixadminURL = "http://downloads.sourceforge.net/project/postfixadmin/postfixadmin/postfixadmin-2.3.6/postfixadmin-2.3.6.tar.gz?r=http%3A%2F%2Fsourceforge.net%2Fprojects%2Fpostfixadmin%2F%3Fsource%3Ddirectory&ts=1389454145&use_mirror=netcologne";
-#my $postfixadminDir = "/var/www/postfixadmin";
+my $postfixadminURL = "https://netcologne.dl.sourceforge.net/project/postfixadmin/postfixadmin/postfixadmin-3.0.2/postfixadmin-3.0.2.tar.gz";
 
 my ($postfixadminPasswordPlain, $postfixadminPasswordHash) = postfixadminCreatePassword();
 
@@ -904,6 +903,16 @@ foreach(glob($muninPluginGlob)){
 	system("ln -s $_");
 }
 succeed();
+
+my $templatesDir = $postfixadminDir."/templates_c";
+start("Setting permissions on smarty templates dir $templatesDir");
+$cmd = "chown www-data $templatesDir && chmod 750 $templatesDir";
+if(run($cmd) != 0){
+	fail("Error setting permissions (needs to be writeable-to by the webserver");
+}else{
+	succeed();
+}
+
 
 print "\n\n";
 print "\tRESTARTING SERVICES\n";
