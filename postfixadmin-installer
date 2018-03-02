@@ -26,7 +26,7 @@ my $pfa_os_release = 'other_noissue';
 if ( -f "/etc/issue" ) {
 	if (`grep "Linux 8" /etc/issue`) { $pfa_os_release = 'jessie'; }
 	elsif (`grep "Linux 7" /etc/issue`) { $pfa_os_release = 'wheezy'; }
-	elseif (`grep "Linux 9" /etc/issue`) { $pfa_os_release = 'stretch'; }
+	elsif (`grep "Linux 9" /etc/issue`) { $pfa_os_release = 'stretch'; }
 	else { $pfa_os_release = 'other'; }
 }
 
