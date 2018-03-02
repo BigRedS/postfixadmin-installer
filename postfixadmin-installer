@@ -26,18 +26,25 @@ my $pfa_os_release = 'other_noissue';
 if ( -f "/etc/issue" ) {
 	if (`grep "Linux 8" /etc/issue`) { $pfa_os_release = 'jessie'; }
 	elsif (`grep "Linux 7" /etc/issue`) { $pfa_os_release = 'wheezy'; }
+	elseif (`grep "Linux 9" /etc/issue`) { $pfa_os_release = 'stretch'; }
 	else { $pfa_os_release = 'other'; }
 }
 
 # Define debian release specific variables
 my $dovecot_package_name = 'dovecot-common';
 if ( $pfa_os_release eq 'jessie' ) { $dovecot_package_name = 'dovecot-core'; }
+#TODO make dovecot-core the default
+if ( $pfa_os_release eq 'stretch' ) { $dovecot_package_name = 'dovecot-core'; } 
 
 my $postfixadminDir = "/var/www/postfixadmin";
 if ( $pfa_os_release eq "jessie") { $postfixadminDir = "/var/www/html/postfixadmin"; }
+#TODO make www/html/ the default
+if ( $pfa_os_release eq "stretch") { $postfixadminDir = "/var/www/html/postfixadmin"; }
 
 my $dovecot_package_opt = '';
 if ( $pfa_os_release eq "jessie") { $dovecot_package_opt = 'dovecot-mysql' }
+# TODO make dovecot-mysql default
+if ( $pfa_os_release eq "stretch") { $dovecot_package_opt = 'dovecot-mysql' }
 
 # Check dovecot availability
 if(availableDovecotVersion() !~ /^2\./){
