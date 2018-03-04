@@ -50,16 +50,12 @@ Patches welcome :) Also, file issues above.
 
 Compatibility
 -------------
-This is known to work (i.e. tested succesfully) on:
-* Debian Jessie
-* Debian Wheezy
-* Debian Squeeze w/Dovecot 2.x
+This is the Debian Stretch version of the script.
 
-This doesn't work with Dovecot 1.x; the merging of the 'wheezy' branch broke this. 
+There exists previous versions of the script for previous Debian versions; see the Releases
+tab on GitHub:
 
-If you want the version that *does* work with Dovecot 1.x (specifically Lenny and 
-Squeeze), try it at tag 'lenny' or 'wheezy' (see 'Releases' on GitHub); I'm not 
-*that* interested in feature-adding to those, but if something does go wrong do 
-let me know.
+https://github.com/BigRedS/postfixadmin-installer/releases
 
-I'm interested in compatibility with any other Debian-derived distros, too.
+I'm interested in compatibility with any other Debian-derived distros, too. If you let me know
+which worked where, I'll update this readme with that information.
