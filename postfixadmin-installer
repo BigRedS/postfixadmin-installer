@@ -10,7 +10,7 @@
 # Tries to get the MySQL debian-sys-maint credentials and use them. Currently, I'm not quite 
 # sure what it does if it doesn't get them :)
 #
-# Written by Avi (@avi.co) in 2011
+# Written by Avi (@avi.co) in 2011 (and 2018)
 
 #Depends: libwww-perl, (mysql-server|mariadb-server), postfix
 
@@ -21,39 +21,31 @@ use Digest::SHA qw/sha1_hex/;
 use Term::ANSIColor;
 use Getopt::Long qw/:config auto_version/;
 
-# Check OS release
-my $pfa_os_release = 'other_noissue';
-if ( -f "/etc/issue" ) {
-	if (`grep "Linux 8" /etc/issue`) { $pfa_os_release = 'jessie'; }
-	elsif (`grep "Linux 7" /etc/issue`) { $pfa_os_release = 'wheezy'; }
-	elsif (`grep "Linux 9" /etc/issue`) { $pfa_os_release = 'stretch'; }
-	else { $pfa_os_release = 'other'; }
+my $debian_version;
+if( -f '/etc/issue'){
+	open(my $fh, '<', '/etc/issue') or die ("Error reading /etc/issue: $!");
+	my $line = readline($fh);
+	if($line =~ m#Debian GNU/Linux (\d+)#){
+		$debian_version = $1;
+	}
+}else{
+	print STDERR "/etc/issue doesn't exist. Is this really Debian?\n";
+	exit 1;
+}
+my($dovecotPackage,$AdditionalPackages);
+if($debian_version == 9){
+}else{
+	print STDERR "This isn't stretch, get a different version of the script:\n";
+	print STDERR "See here for per-distro releases:\n":
+	print STDERR "  https://github.com/BigRedS/postfixadmin-installer/releases\n";
+	print STDERR "And, if those don't work, try the branches\n";
 }
 
-# Define debian release specific variables
-my $dovecot_package_name = 'dovecot-common';
-if ( $pfa_os_release eq 'jessie' ) { $dovecot_package_name = 'dovecot-core'; }
-#TODO make dovecot-core the default
-if ( $pfa_os_release eq 'stretch' ) { $dovecot_package_name = 'dovecot-core'; } 
 
-my $postfixadminDir = "/var/www/postfixadmin";
-if ( $pfa_os_release eq "jessie") { $postfixadminDir = "/var/www/html/postfixadmin"; }
-#TODO make www/html/ the default
-if ( $pfa_os_release eq "stretch") { $postfixadminDir = "/var/www/html/postfixadmin"; }
-
-my $dovecot_package_opt = '';
-if ( $pfa_os_release eq "jessie") { $dovecot_package_opt = 'dovecot-mysql' }
-# TODO make dovecot-mysql default
-if ( $pfa_os_release eq "stretch") { $dovecot_package_opt = 'dovecot-mysql' }
-
-# Check dovecot availability
-if(availableDovecotVersion() !~ /^2\./){
-  print STDERR "This script will not work on versions of Dovecot other than 2.x (you have ".availableDovecotVersion().")\nExiting.\n";
-  exit 1;
-}
+my $postfixadminDir = "/var/www/html/postfixadmin";
 
 # Config starts here
-our $VERSION = "0.20160423 (Jessie; Dovecot 2.x)";
+our $VERSION = "0.20130304 (Stretch; PFA 3.1, Dovecot 2.x, PHP7.0)";
 
 my $f_log = '/tmp/postfixadmin-installer.log';
 my $writeLog = 1;
@@ -234,7 +226,8 @@ $vacationMasterDotCf .= '  flags=Rq user=vacation argv=/var/spool/vacation/vacat
 
 # Packages we depend upon. Remember that the script can't cope with installers that need interaction. 
 # Any that do need adding below
-my $packages = "$dovecot_package_name postfix-mysql libapache2-mod-php5 php5-mysql php5-imap libsasl2-2 libsasl2-modules sasl2-bin libdbd-mysql-perl libemail-valid-perl libmime-perl liblog-log4perl-perl liblog-dispatch-perl libgetopt-argvfile-perl libmime-charset-perl libmime-encwords-perl dovecot-imapd dovecot-pop3d ssl-cert $dovecot_package_opt";
+my $packages = "php7.0-mbstring dovecot-core dovecot-mysql dovecot-pop3d dovecot-imapd php-imap php-mysql postfix-mysql libapache2-mod-php7.0 libsasl2-2 libsasl2-modules sasl2-bin libdbd-mysql-perl libemail-valid-perl liblog-log4perl-perl liblog-dispatch-perl libgetopt-argvfile-perl libmime-charset-perl libmime-encwords-perl dovecot-imapd dovecot-pop3d ssl-cert";
+
 
 # postfix and mysql-server both require human-interaction to install, so we insist it's done before 
 # this script runs. There's probably a more elegant way of doing this. This also forces (or at least 
@@ -274,6 +267,7 @@ if($@){
 #### Postfixadmin-specific config  # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
 
 my $postfixadminURL = "https://netcologne.dl.sourceforge.net/project/postfixadmin/postfixadmin/postfixadmin-3.0.2/postfixadmin-3.0.2.tar.gz";
+my $postfixadminURL = 'https://downloads.sourceforge.net/project/postfixadmin/postfixadmin/postfixadmin-3.1/postfixadmin-3.1.tar.gz';
 
 my ($postfixadminPasswordPlain, $postfixadminPasswordHash) = postfixadminCreatePassword();
 
@@ -769,7 +763,7 @@ if (system("echo \"grant all privileges on $dbname.* to $dbuser identified by \'
 
 
 start("Getting postfixadmin");
-if(getstore($postfixadminURL, "/var/www/postfixadmin.tar.gz")){
+if(getstore($postfixadminURL, "/var/www/html/postfixadmin.tar.gz")){
 	succeed();
 }else{
 	fail();
@@ -784,8 +778,8 @@ if ( -d $postfixadminDir){
 		fail("PostfixAdmin directory '$postfixadminDir' already has files in it. Not touching them\n");
 	}
 }else{
-	run("tar -C /var/www -xf /var/www/postfixadmin.tar.gz");
-	run("ln -s /var/www/postfixadmin-* $postfixadminDir");
+	run("tar -C /var/www/html/ -xf /var/www/html/postfixadmin.tar.gz");
+	run("ln -s /var/www/html/postfixadmin-* $postfixadminDir");
 	succeed();
 }
 
@@ -852,7 +846,7 @@ foreach(@config){
 }
 
 
-open (my $f, ">", $postfixadminDir."/config.inc.php") or die "Error opening postfixadmin's config.inc.php for writing";
+open (my $f, ">", $postfixadminDir."/config.local.php") or die "Error opening postfixadmin's config.inc.php for writing";
 print $f join("", @newconfig);
 close($f);
 succeed();
@@ -912,6 +906,7 @@ foreach(glob($muninPluginGlob)){
 succeed();
 
 my $templatesDir = $postfixadminDir."/templates_c";
+mkdir($templatesDir);
 start("Setting permissions on smarty templates dir $templatesDir");
 $cmd = "chown www-data $templatesDir && chmod 750 $templatesDir";
 if(run($cmd) != 0){
@@ -980,6 +975,7 @@ exit 0;
 sub postfixadminCreatePassword {
         my $salt =  time(). '*' . rand(6000);
         my $password = createPassword(14);
+	$password.='25'; #to get round the 'must have two digits' default restriction
         my $encryptedPassword = $salt.':'.sha1_hex($salt.':'.$password);
         return $password, $encryptedPassword;
 }
@@ -1090,9 +1086,11 @@ sub run{
 	_log("Command: $cmd");
 	$cmd.=" 2>&1 >> $f_log";
 	my $return =  system($cmd);
+	$return = $return>>8;
+	_log("Exit: $return");
 	succeed() if $return = 0;
 	fail() if $return != 0;
-	return $return;
+	return $return
 }
 
 sub _print{
@@ -1117,18 +1115,6 @@ sub _error{
 	chomp $message;
 	print STDERR $message."\n";
 	exit $exit;
-}
-
-sub availableDovecotVersion{
-  foreach(`apt-cache policy $dovecot_package_name`){
-    if($_ =~ /Candidate:\s+(\S+)/){
-      my $version = $1; 
-      $version =~ s/^\d+://;
-      return $version;
-    }   
-  }
-  print STDERR "Couldn't determine available Dovecot version";
-  return "0";
 }
 
 sub printRed{
