@@ -519,7 +519,7 @@ unless($overwrite > 0){
 }
 
 
-start("Installing packages (this can take a few minutes)");
+start("Installing packages (this can take a few minutes)\n");
 my $cmd = "apt-get -qy install $packages";
 if(run($cmd) != 0){
 	fail($packages);
