@@ -36,7 +36,7 @@ my($dovecotPackage,$AdditionalPackages);
 if($debian_version == 9){
 }else{
 	print STDERR "This isn't stretch, get a different version of the script:\n";
-	print STDERR "See here for per-distro releases:\n":
+	print STDERR "See here for per-distro releases:\n";
 	print STDERR "  https://github.com/BigRedS/postfixadmin-installer/releases\n";
 	print STDERR "And, if those don't work, try the branches\n";
 }
