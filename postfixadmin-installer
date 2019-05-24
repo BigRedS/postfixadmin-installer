@@ -323,6 +323,9 @@ sub mainDotCf(){
 smtpd_tls_cert_file=/etc/ssl/certs/ssl-cert-snakeoil.pem
 smtpd_tls_key_file=/etc/ssl/private/ssl-cert-snakeoil.key
 smtpd_use_tls=yes
+# Enable inter-server TLS support by default
+smtp_tls_security_level = may
+smtpd_tls_security_level = may
 
 virtual_mailbox_domains = proxy:mysql:$postfixDir/mysql_virtual_domains_maps.cf
 virtual_alias_maps =
