@@ -54,9 +54,9 @@ our $VERSION = "0.20200628 (Buster; PFA ${postfixadmin_ver})";
 
 my $f_log = '/tmp/postfixadmin-installer.log';
 my $writeLog = 1;
-my $mysqlhost = undef;
-my $mysqluser = undef;
-my $mysqlpass = undef;
+my $installer_dbhost = undef;
+my $installer_dbuser = undef;
+my $installer_dbpass = undef;
 my $fqdn;
 my $help;
 my $overwrite = 0;
@@ -67,11 +67,11 @@ my $libmailsender = 'http://ftp.uk.debian.org/debian/pool/non-free/libm/libmail-
 my $libmailsender_tmpfilename = "/tmp/libmail-sender-perl_0.8.16-2_all.deb";
 
 # This is the user that postfix and dovecot (and whatever else) will use to interfere with the db
-my $dbuser = "vmail";
-my $dbhost = "localhost";
-my $dbname = "vmail";
-my $dbpass = createPassword(25);
-chomp $dbpass;
+my $pfa_dbuser = "vmail";
+my $pfa_dbhost = "localhost";
+my $pfa_dbname = "vmail";
+my $pfa_dbpass = createPassword(25);
+chomp $pfa_dbpass;
 
 # There's a bunch of faffing with files. Every file we edit is backed up first, unless it's
 # (almost) guaranteed to be either not there already or not wanted (like postfix's mysql config).
@@ -135,16 +135,16 @@ GetOptions(
 	'overwrite'        => \$overwrite,
 	'log!'	           => \$writeLog,
 	'logfile=s'        => \$f_log,
-	'mysqluser=s'      => \$mysqluser,
-	'mysqlpass=s'      => \$mysqlpass,
-	'mysqlhost=s'      => \$mysqlhost,
+	'mysqluser=s'      => \$installer_dbuser,
+	'mysqlpass=s'      => \$installer_dbpass,
+	'mysqlhost=s'      => \$installer_dbhost,
 	'libmailsender=s'  => \$libmailsender,
 	'fqdn=s'           => \$fqdn,
 	'help|h'           => \$help,
-	'pfa-mysqluser=s'  => \$dbuser,
-	'pfa-mysqlpass=s'  => \$dbpass,
-	'pfa-mysqlhost=s'  => \$dbhost,
-	'pfa-mysqldb=s'    => \$dbname,
+	'pfa-mysqluser=s'  => \$pfa_dbuser,
+	'pfa-mysqlpass=s'  => \$pfa_dbpass,
+	'pfa-mysqlhost=s'  => \$pfa_dbhost,
+	'pfa-mysqldb=s'    => \$pfa_dbname,
 	'version'          => \$version,
 );
 
@@ -295,10 +295,10 @@ sub printEndInstructions{
 # put at the top of each:
 sub postfixCredentials() {
 	return <<EOF;
-user = $dbuser
-password = $dbpass
-hosts = $dbhost
-dbname = $dbname
+user = $pfa_dbuser
+password = $pfa_dbpass
+hosts = $pfa_dbhost
+dbname = $pfa_dbname
 EOF
 }
 
@@ -383,7 +383,7 @@ sub dovecotDotSql() {
 	my $uid = shift;
 	my $gid = shift;
 	return <<EOF;
-connect = host=$dbhost dbname=$dbname user=$dbuser password=$dbpass
+connect = host=$pfa_dbhost dbname=$pfa_dbname user=$pfa_dbuser password=$pfa_dbpass
 driver = mysql
 default_pass_scheme = MD5-CRYPT
 password_query = SELECT username AS user,password FROM mailbox WHERE username = '%u' AND active='1'
@@ -490,15 +490,15 @@ sub sasl(){
 
 # Herein, the first 'print' of any stanza should serve as a reasonable comment on what it's doing
 print "Guessing MySQL credentials...";
-if ( (!$mysqlhost || !$mysqluser )){
-	($mysqlhost, $mysqluser, $mysqlpass) = &getMySQLCredentials();
-	if($mysqluser eq 'root' and $mysqlpass eq ''){
+if ( (!$installer_dbhost || !$installer_dbuser )){
+	($installer_dbhost, $installer_dbuser, $installer_dbpass) = &getMySQLCredentials();
+	if($installer_dbuser eq 'root' and $installer_dbpass eq ''){
 		printGreen("Found a non-password root user; normal for Buster\n");
-	}elsif(!$mysqlpass){
+	}elsif(!$installer_dbpass){
 		printRed("Failed\n");
-		print "\tPlease enter the password for mysql user \'$mysqluser\':\n";
+		print "\tPlease enter the password for mysql user \'$installer_dbuser\':\n";
 		system('stty','-echo');
-		chop($mysqlpass=<STDIN>);
+		chop($installer_dbpass=<STDIN>);
 		system('stty','echo');
 	}else{
 		printGreen("Done\n");
@@ -753,24 +753,24 @@ if ($write == 1){
 # MySQL setup:
 
 start("Creating db");
-my $mysqlconnect = "mysql -u $mysqluser -h $mysqlhost";
-$mysqlconnect .= " -p$mysqlpass" if $mysqlpass =~ m/.+/;
+my $mysqlconnect = "mysql -u $installer_dbuser -h $installer_dbhost";
+$mysqlconnect .= " -p$installer_dbpass" if $installer_dbpass =~ m/.+/;
 
-if (system("echo \"use $dbname\" | $mysqlconnect 2>/dev/null") == 0){
+if (system("echo \"use $pfa_dbname\" | $mysqlconnect 2>/dev/null") == 0){
 	print "skip; db already exists\n";
 }else{
-	if(system("echo \"create database $dbname\" | $mysqlconnect") == 0){
+	if(system("echo \"create database $pfa_dbname\" | $mysqlconnect") == 0){
 		succeed();
 	}else{
-		fail("'create database $dbname' returned non-zero");
+		fail("'create database $pfa_dbname' returned non-zero");
 	}
 }
 
 start("Configuring db");
-if (system("echo \"grant all privileges on $dbname.* to $dbuser identified by \'$dbpass\'\" | $mysqlconnect") == 0){
+if (system("echo \"grant all privileges on $pfa_dbname.* to $pfa_dbuser identified by \'$pfa_dbpass\'\" | $mysqlconnect") == 0){
 	succeed();
 }else{
-	fail("'grant all privileges on $dbname.* to $dbuser identified by \'$dbpass\'\\' returned non-zero\n");
+	fail("'grant all privileges on $pfa_dbname.* to $pfa_dbuser identified by \'$pfa_dbpass\'\\' returned non-zero\n");
 }
 
 
@@ -807,13 +807,13 @@ foreach(@config){
 		$line = "\$CONF['configured'] = true;\n";
 
 	}elsif ($line =~ /^\$CONF\[\'database_user/){
-		$line = "\$CONF[\'database_user\'] = \'$dbuser\';\n";
+		$line = "\$CONF[\'database_user\'] = \'$pfa_dbuser\';\n";
 
 	}elsif ($line =~ /^\$CONF\[\'database_password/){
-		$line = "\$CONF[\'database_password\'] = \'$dbpass\';\n";
+		$line = "\$CONF[\'database_password\'] = \'$pfa_dbpass\';\n";
 
 	}elsif ($line =~ /^\$CONF\[\'database_name/){
-		$line = "\$CONF[\'database_name\'] = \'$dbname\';\n";
+		$line = "\$CONF[\'database_name\'] = \'$pfa_dbname\';\n";
 
 	}elsif($line =~ /^\$CONF\[\'setup_password/){
 		$line =  "\$CONF[\'setup_password\'] = \'$postfixadminPasswordHash\';\n";
@@ -896,13 +896,13 @@ foreach my $line (@config){
 	if ($line =~ /our \$db_type =/){
 		$line = "our \$db_type = 'mysql';";
 	}elsif($line =~ /our \$db_username/){
-		$line = "our \$db_username = \'$dbuser\';\n";
+		$line = "our \$db_username = \'$pfa_dbuser\';\n";
 
 	}elsif($line =~ /our \$db_password/){
-		$line = "our \$db_password = \'$dbpass\';\n";
+		$line = "our \$db_password = \'$pfa_dbpass\';\n";
 
 	}elsif($line =~ /our \$db_name/){
-		$line = "our \$db_name = \'$dbname\';\n";
+		$line = "our \$db_name = \'$pfa_dbname\';\n";
 
 	}elsif($line =~ /our \$vacation_domain/){
 		$line = "our \$vacation_domain=\'$vacationDomain\';\n";
