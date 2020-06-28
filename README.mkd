@@ -13,7 +13,7 @@ Installation
 
 Just download and run as root:
 
-    apt-get install postfix mysql-server libwww-perl
+    apt-get install postfix mariadb-server libwww-perl
     GET https://raw.github.com/BigRedS/postfixadmin-installer/master/postfixadmin-installer > postfixadmin-installer
     perl ./postfixadmin-installer
 

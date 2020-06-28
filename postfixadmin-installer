@@ -12,7 +12,7 @@
 #
 # Written by Avi (@avi.co) in 2011 (and 2018)
 
-#Depends: libwww-perl, (mysql-server|mariadb-server), postfix
+#Depends: libwww-perl, (mariadb-server), postfix
 
 use strict;
 use File::Copy;
@@ -32,7 +32,6 @@ if( -f '/etc/issue'){
 	print STDERR "/etc/issue doesn't exist. Is this really Debian?\n";
 	exit 1;
 }
-my($dovecotPackage,$AdditionalPackages);
 if($debian_version == 9){
 }else{
 	print STDERR "This isn't stretch, get a different version of the script:\n";
@@ -226,7 +225,7 @@ $vacationMasterDotCf .= '  flags=Rq user=vacation argv=/var/spool/vacation/vacat
 
 # Packages we depend upon. Remember that the script can't cope with installers that need interaction. 
 # Any that do need adding below
-my $packages = "php7.0-mbstring dovecot-core dovecot-mysql dovecot-pop3d dovecot-imapd php-imap php-mysql postfix-mysql libapache2-mod-php7.0 libsasl2-2 libsasl2-modules sasl2-bin libdbd-mysql-perl libemail-valid-perl liblog-log4perl-perl liblog-dispatch-perl libgetopt-argvfile-perl libmime-charset-perl libmime-encwords-perl dovecot-imapd dovecot-pop3d ssl-cert";
+my $packages = "php7.3-mbstring dovecot-core dovecot-mysql dovecot-pop3d dovecot-imapd php-imap php-mysql postfix-mysql libapache2-mod-php7.3 libsasl2-2 libsasl2-modules sasl2-bin libdbd-mysql-perl libemail-valid-perl liblog-log4perl-perl liblog-dispatch-perl libgetopt-argvfile-perl libmime-charset-perl libmime-encwords-perl dovecot-imapd dovecot-pop3d ssl-cert passwd";
 
 
 # postfix and mysql-server both require human-interaction to install, so we insist it's done before 
@@ -488,7 +487,9 @@ sub sasl(){
 print "Guessing MySQL credentials...";
 if ( (!$mysqlhost || !$mysqluser )){
 	($mysqlhost, $mysqluser, $mysqlpass) = &getMySQLCredentials();
-	if (!$mysqlpass){
+	if($mysqluser eq 'root' and $mysqlpass eq ''){
+		printGreen("Found a non-password root user; normal for Buster\n");
+	}elsif(!$mysqlpass){
 		printRed("Failed\n");
 		print "\tPlease enter the password for mysql user \'$mysqluser\':\n";
 		system('stty','-echo');
@@ -512,6 +513,8 @@ unless($overwrite > 0){
 				exit;
 			}
 		}
+	}else{
+		printGreen("None found\n");
 	}
 }
 
@@ -526,25 +529,25 @@ if(run($cmd) != 0){
 }
 
 
-start("Testing for Mail::Sender (for the vacation package)");
-my $mailSenderVersion;
-eval{
-	require Mail::Sender;
-	$mailSenderVersion = $Mail::Sender::VERSION;
-};
-if($@){
-	start("Not found\nInstalling Mail::Sender");
-	_log("Downloading '$libmailsender' to '$libmailsender_tmpfilename'");
-	getstore($libmailsender, $libmailsender_tmpfilename);
-	my $cmd = "dpkg -i $libmailsender_tmpfilename >> $f_log";
-	if(run($cmd) == 0){
-		succeed();
-	}else{
-		fail();
-	}
-}else{
-	succeed("Version $Mail::Sender::VERSION");
-}
+#start("Testing for Mail::Sender (for the vacation package)");
+#my $mailSenderVersion;
+#eval{
+#	require Mail::Sender;
+#	$mailSenderVersion = $Mail::Sender::VERSION;
+#};
+#if($@){
+#	start("Not found\nInstalling Mail::Sender");
+#	_log("Downloading '$libmailsender' to '$libmailsender_tmpfilename'");
+#	getstore($libmailsender, $libmailsender_tmpfilename);
+#	my $cmd = "dpkg -i $libmailsender_tmpfilename >> $f_log";
+#	if(run($cmd) == 0){
+#		succeed();
+#	}else{
+#		fail();
+#	}
+#}else{
+#	succeed("Version $Mail::Sender::VERSION");
+#}
 
 start("Creating user $unixUser in group $unixUser");
 my($uid,$gid);
@@ -745,7 +748,8 @@ if ($write == 1){
 # MySQL setup:
 
 start("Creating db");
-my $mysqlconnect = "mysql -u $mysqluser -h $mysqlhost -p$mysqlpass";
+my $mysqlconnect = "mysql -u $mysqluser -h $mysqlhost";
+$mysqlconnect .= " -p$mysqlpass" if $mysqlpass =~ m/.+/;
 
 if (system("echo \"use $dbname\" | $mysqlconnect 2>/dev/null") == 0){
 	print "skip; db already exists\n";
@@ -873,6 +877,11 @@ if (run($cmd) != 0){
 }
 
 start("Configuring vacation script");
+if ( -f $vacationSpool ){
+	unlink($vacationSpool);
+	mkdir($vacationSpool);
+}
+
 my $script = $vacationSpool."/vacation.pl";
 open(my $f, "<", $script);
 my @config = <$f>;
@@ -925,7 +934,7 @@ print "\tI'm about to restart some services.\n\tI cannot check they've come back
 print "\n\n\n";
 
 print "Restarting postfix...";
-system("/etc/init.d/postfix restart 2>/dev/null >/dev/null");
+system("systemctl restart postfix 2>/dev/null >/dev/null");
 if ($? != 0){
 	printRed(" ERROR\n");
 }else{
@@ -933,7 +942,7 @@ if ($? != 0){
 }
 
 print "Restarting dovecot...";
-system("/etc/init.d/dovecot restart 2>/dev/null >/dev/null");
+system("systemctl restart dovecot 2>/dev/null >/dev/null");
 if ($? != 0){
 	printRed(" ERROR\n");
 }else{
@@ -941,7 +950,7 @@ if ($? != 0){
 }
 
 print "Starting saslauthd...";
-system("/etc/init.d/saslauthd start 2>/dev/null >/dev/null");
+system("systemctl restart saslauthd 2>/dev/null >/dev/null");
 if ($? != 0){
 	printRed(" ERROR\n");
 }else{
@@ -949,7 +958,7 @@ if ($? != 0){
 }
 
 print "Restarting Apache2...";
-system("apache2ctl restart 2>/dev/null > /dev/null");
+system("systemctl restart apache2 2>/dev/null > /dev/null");
 
 if ($? != 0){
 	printRed(" ERROR\n");
@@ -998,22 +1007,6 @@ sub createPassword {
 sub getMySQLCredentials(){
 	my $f;
 	my ($host,$user,$password);
-	if ( -f "/etc/debian_version"){
-		eval{open ($f, "<", "/etc/debian_version") or die()};
-		if (!$@){
-			my @file = <$f>;
-			if ($file[0] =~ /^5/){
-				# If we're here, we're on a Lenny box, and debian-sys-maint wont
-				# let us grant privileges, so we want to use root.
-				$user = "root";
-				$host = "localhost";
-				$password = undef;
-				return($host,$user,$password);
-			}
-		}
-	}		
-	# If we're here, we're on a non-Lenny box which, as far as I've tested, means Squeeze or Lucid. 
-	# We therefore just want to get the debian-sys-maint credentials:
 	open (my $f, "<", "/etc/mysql/debian.cnf") or die "Error opening /etc/mysql/debian.cnf for reading. Are you root? Is this Debian?";;
 	while(<$f>){
 		if (/host\s+=\s+(.+)\s+$/){
