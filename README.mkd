@@ -34,11 +34,13 @@ The script is split in two. The upper, larger, part is where all the config
 is set, and it's mostly fairly well commented. A quick run down of the defaults:
 
 * Mailboxes go in `/var/lib/vmail/<domain>/<local-part>`
-* MySQL stuff goes in a db called `vmail` accessible by a user `vmail` from `localhost`.
+* MySQL stuff goes in a db called `vmail` accessible by a user `vmail` from 
+  `localhost`.
 * Filesystem stuff is all done as `vmail`:`vmail` by both Dovecot and Postfix.
-* Postfixadmin 2.3.6 is downloaded from Sourceforge. It is extracted into 
+* Postfixadmin 3.2 is downloaded from Sourceforge. It is extracted into 
   `/var/www/postfixadmin` and Apache is not reconfigured at all; you might need to 
-	configure an alias to make this work.
+  configure an alias to make this 
+  work.
 * imap, imaps, pop3 and pop3s are all enabled.
 * Plaintext imap(s) & pop3(s) auth is *enabled* (because it's really handy for testing).
 * Plaintext auth for imap and pop is default when enabled. 
@@ -50,7 +52,7 @@ Patches welcome :) Also, file issues above.
 
 Compatibility
 -------------
-This is the Debian Stretch version of the script.
+This is the Debian Buster version of the script.
 
 There exists previous versions of the script for previous Debian versions; see the Releases
 tab on GitHub:

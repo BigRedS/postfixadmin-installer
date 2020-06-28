@@ -4,13 +4,13 @@
 
 # Installs and nearly configures a Postfix/Dovecot/MySQL/Postfixadmin mailer on a Debianish system.
 
-# You should be able to just drop it in and run it. If it's missing anything (it only needs 
-# LWP::Simple and for Postfix and MySQL to be configured enough to be running) it tells you how to 
+# You should be able to just drop it in and run it. If it's missing anything (it only needs
+# LWP::Simple and for Postfix and MySQL to be configured enough to be running) it tells you how to
 # get it.
-# Tries to get the MySQL debian-sys-maint credentials and use them. Currently, I'm not quite 
+# Tries to get the MySQL debian-sys-maint credentials and use them. Currently, I'm not quite
 # sure what it does if it doesn't get them :)
 #
-# Written by Avi (@avi.co) in 2011 (and 2018)
+# Written by Avi (@avi.co) in 2011 (and 2018) (and 2020)
 
 #Depends: libwww-perl, (mariadb-server), postfix
 
@@ -20,6 +20,8 @@ use Cwd;
 use Digest::SHA qw/sha1_hex/;
 use Term::ANSIColor;
 use Getopt::Long qw/:config auto_version/;
+
+print "Detecting Debian version...";
 
 my $debian_version;
 if( -f '/etc/issue'){
@@ -32,155 +34,49 @@ if( -f '/etc/issue'){
 	print STDERR "/etc/issue doesn't exist. Is this really Debian?\n";
 	exit 1;
 }
-if($debian_version == 9){
+if($debian_version == 10){
+	printGreen("Found version 10 Buster\n");
 }else{
+	printRed("Looked for version 10, didn't find it\n");
 	print STDERR "This isn't stretch, get a different version of the script:\n";
 	print STDERR "See here for per-distro releases:\n";
 	print STDERR "  https://github.com/BigRedS/postfixadmin-installer/releases\n";
 	print STDERR "And, if those don't work, try the branches\n";
+	exit 1;
 }
 
-
 my $postfixadminDir = "/var/www/html/postfixadmin";
+# Don't forget to update the readme!
+my $postfixadmin_ver = '3.2';
 
 # Config starts here
-our $VERSION = "0.20130304 (Stretch; PFA 3.1, Dovecot 2.x, PHP7.0)";
+our $VERSION = "0.20200628 (Buster; PFA ${pfa_ver})";
 
 my $f_log = '/tmp/postfixadmin-installer.log';
 my $writeLog = 1;
 my $mysqlhost = undef;
 my $mysqluser = undef;
 my $mysqlpass = undef;
-my $libmailsender = "http://avi.co/stuff/libmail-sender-perl_0.8.22-1_all.deb";
 my $fqdn;
 my $help;
 my $overwrite = 0;
 my $colour=1;
 my $version=0;
 
-# This is the user that postfix and dovecot (and whatever else) will use to interfere with the db. 
+my $libmailsender = 'http://ftp.uk.debian.org/debian/pool/non-free/libm/libmail-sender-perl/libmail-sender-perl_0.8.16-2_all.deb';
+my $libmailsender_tmpfilename = "/tmp/libmail-sender-perl_0.8.16-2_all.deb";
+
+# This is the user that postfix and dovecot (and whatever else) will use to interfere with the db
 my $dbuser = "vmail";
 my $dbhost = "localhost";
 my $dbname = "vmail";
 my $dbpass = createPassword(25);
 chomp $dbpass;
 
-GetOptions(
-  'colour!'          => \$colour,
-  'overwrite'        => \$overwrite,
-	'log!'	           => \$writeLog,
-	'logfile=s'        => \$f_log,
-	'mysqluser=s'      => \$mysqluser,
-	'mysqlpass=s'      => \$mysqlpass,
-	'mysqlhost=s'      => \$mysqlhost,
-	'libmailsender=s'  => \$libmailsender,
-	'fqdn=s'           => \$fqdn,
-	'help|h'           => \$help,
-	'pfa-mysqluser=s'  => \$dbuser,
-	'pfa-mysqlpass=s'  => \$dbpass,
-	'pfa-mysqlhost=s'  => \$dbhost,
-	'pfa-mysqldb=s'    => \$dbname,
-	'version'          => \$version,
-);
-
-if(1 == $version){
-	print "postfixadmin-installer version $VERSION\n";
-	exit;
-}
-
-if ( $< != 0 ) {
-print "This script must be run as root\n"; 
-exit (0);
-}
-
-unless($fqdn =~ /.+/){
-	$fqdn = `hostname -f`;
-	chomp $fqdn;
-}
-
-if($help){
-  print <<EOF;
-
-postfixadmin-installer
-
-  Installs postfixadmin
-
-usage:
-  postfixadmin-installer [option]
-
-  --nocolour             Don't print coloured text
-  --fqdn <fqdn>          set FQDN (used in links in postfixadmin UI).
-  --help                 show this help.
-  --nolog                don't log
-  --logfile <path>       write logfile at path
-  --libmailsender <url>  URL to Mail::Sender deb package
-  --overwrite            Overwrite detected existing installs
-
- Mysql admin details: these are the details the script will use to log in
-                      
-  --mysqlhost   host
-  --mysqluser   username
-  --mysqlpass   password
-
-  If none are set, will use the contents of /etc/mysql/debian.cnf to auth with the 
-  db. If you set a password here you must also set a user.
-
- Set postfixadmin's MySQL details; these are the details PFA will use day-to-day:
-  --pfa-mysqlhost   host default: 
-  --pfa-mysqluser   username
-  --pfa-mysqlpass   password
-  --pfa-mysqldb     database
-
-EOF
-exit;
-}
-
-
-
-if($writeLog > 0){
-	eval{ open(my $f, ">", $f_log) or die "Error opening logfile '$f_log' : $!" };
-	if($@){
-		_warn($@);
-	$writeLog = 0;
-	}
-}
-	
-my @errors;
-my $task;
-
-select(STDOUT);
-$|++;
-
+# There's a bunch of faffing with files. Every file we edit is backed up first, unless it's
+# (almost) guaranteed to be either not there already or not wanted (like postfix's mysql config).
 my ($y,$m,$d)=(localtime(time))[5,4,3];
 my $date = $y + 1900 ."-".sprintf("%02d",$m + 1)."-$d";
-
-
-my $libmailsender = "http://avi.co/stuff/libmail-sender-perl_0.8.22-1_all.deb";
-my $libmailsender_tmpfilename = "/tmp/libmail-sender-perl_0.8.22-1_all.deb";
-
-print "Postfixadmin-installer\n\n";
-print "Installing;";
-if($writeLog){
-	print " writing a log to $f_log";
-}else{
-	print " not writing a log file";
-}
-if($overwrite){
-	printRed(", overwriting existing installations");
-	print "\n";
-}else{
-	print ", aborting if another installtion is detected\n";
-}
-print "\nFQDN guessed as ";
-printYellow($fqdn);
-print "\n\n";
-print "Run with --help to see options; carrying on in two seconds...";
-sleep(1);
-print ".";
-sleep(1);
-print "Carrying on! \n";
-# There's a bunch of faffing with files. Every file we edit is backed up first, unless it's 
-# (almost) guaranteed to be either not there already or not wanted (like postfix's mysql config).
 
 my $dovecotDotConfFile = "/etc/dovecot/dovecot.conf";
 my $dovecotDotConfBackupFile = "/etc/dovecot/.bak_${date}_dovecot.conf";
@@ -215,7 +111,7 @@ my $muninActivePluginDir = "/etc/munin/plugins";
 my $unixUser = "vmail";
 
 # We also need a user and group for the vacation message management. Again, we simply create a group
-# of the same name as the user. 
+# of the same name as the user.
 my $vacationUser = "vacation";
 my $vacationSpool = "/var/spool/vacation";
 my $vacationDomain = "autoreply.".$fqdn;
@@ -223,15 +119,140 @@ my $vacationMasterDotCf = "vacation  unix  -\tn\tn\t-\t-\tpipe\n";
 $vacationMasterDotCf .= '  flags=Rq user=vacation argv=/var/spool/vacation/vacation.pl -f ${sender} ${recipient}';
 
 
-# Packages we depend upon. Remember that the script can't cope with installers that need interaction. 
+my $ignoreBackupFailures = 0;
+
+# Packages we depend upon. Remember that the script can't cope with installers that need interaction.
 # Any that do need adding below
 my $packages = "php7.3-mbstring dovecot-core dovecot-mysql dovecot-pop3d dovecot-imapd php-imap php-mysql postfix-mysql libapache2-mod-php7.3 libsasl2-2 libsasl2-modules sasl2-bin libdbd-mysql-perl libemail-valid-perl liblog-log4perl-perl liblog-dispatch-perl libgetopt-argvfile-perl libmime-charset-perl libmime-encwords-perl dovecot-imapd dovecot-pop3d ssl-cert passwd";
 
 
-# postfix and mysql-server both require human-interaction to install, so we insist it's done before 
-# this script runs. There's probably a more elegant way of doing this. This also forces (or at least 
-# encourages) removal of the old mailer first.
 
+
+
+
+GetOptions(
+	'colour!'          => \$colour,
+	'overwrite'        => \$overwrite,
+	'log!'	           => \$writeLog,
+	'logfile=s'        => \$f_log,
+	'mysqluser=s'      => \$mysqluser,
+	'mysqlpass=s'      => \$mysqlpass,
+	'mysqlhost=s'      => \$mysqlhost,
+	'libmailsender=s'  => \$libmailsender,
+	'fqdn=s'           => \$fqdn,
+	'help|h'           => \$help,
+	'pfa-mysqluser=s'  => \$dbuser,
+	'pfa-mysqlpass=s'  => \$dbpass,
+	'pfa-mysqlhost=s'  => \$dbhost,
+	'pfa-mysqldb=s'    => \$dbname,
+	'version'          => \$version,
+);
+
+if(1 == $version){
+	print "postfixadmin-installer version $VERSION\n";
+	exit;
+}
+
+if ( $< != 0 ) {
+	print "This script must be run as root\n";
+	exit 1;
+}
+
+unless($fqdn =~ /.+/){
+	$fqdn = `hostname -f`;
+	chomp($fqdn);
+}
+
+if($help){
+	print <<EOF;
+
+postfixadmin-installer
+
+  Installs postfixadmin
+
+usage:
+  postfixadmin-installer [option]
+
+  --nocolour             Don't print coloured text
+  --fqdn <fqdn>          set FQDN (used in links in postfixadmin UI).
+  --help                 show this help.
+  --nolog                don't log
+  --logfile <path>       write logfile at path
+  --libmailsender <url>  URL to Mail::Sender deb package
+  --overwrite            Overwrite detected existing installs
+
+ Mysql admin details: these are the details the script will use to log in
+
+  --mysqlhost   host
+  --mysqluser   username
+  --mysqlpass   password
+
+  If none are set, will use the contents of /etc/mysql/debian.cnf to auth with the
+  db. If you set a password here you must also set a user.
+
+ Set postfixadmin's MySQL details; these are the details PFA will use day-to-day:
+  --pfa-mysqlhost   host default:
+  --pfa-mysqluser   username
+  --pfa-mysqlpass   password
+  --pfa-mysqldb     database
+
+EOF
+exit;
+}
+
+eval{
+	require LWP::Simple;
+	LWP::Simple->import();
+};
+if($@){
+	print "I need LWP::Simple, install libwww-perl\n";
+	print "(I'll also need postfix and mysql-server, so you might want to check those now, too)\n";
+	exit 1;
+}
+
+if($writeLog > 0){
+	eval{ open(my $f, ">", $f_log) or die "Error opening logfile '$f_log' : $!" };
+	if($@){
+		_warn($@);
+		$writeLog = 0;
+	}
+}
+	
+my @errors;
+my $task;
+
+select(STDOUT);
+$|++;
+
+
+
+print "Postfixadmin-installer\n\n";
+print "Installing;";
+if($writeLog){
+	print " writing a log to $f_log";
+}else{
+	print " not writing a log file";
+}
+if($overwrite){
+	printRed(", overwriting existing installations");
+	print "\n";
+}else{
+	print ", aborting if another installtion is detected\n";
+}
+print "\nFQDN guessed as ";
+printYellow($fqdn);
+print "\n\n";
+print "Run with --help to see options; carrying on in two seconds...";
+sleep(1);
+print ".";
+sleep(1);
+print "Carrying on! \n";
+
+
+
+# postfix and mysql-server both require human-interaction to install, so we insist it's done before
+# this script runs. There's probably a more elegant way of doing this. This also forces (or at least
+# encourages) removal of the old mailer first.
 my @missingPackages;
 unless(grep(/^ii/, `dpkg -l postfix`)){
 	push(@missingPackages, "postfix");
@@ -248,25 +269,13 @@ if($#missingPackages > 0){
 	exit 1;
 }
 
-my $ignoreBackupFailures = 0;
-
 # For files we've had problems with:
 my @errors;
 
-eval{
-	require LWP::Simple;
-	LWP::Simple->import();
-};
-if($@){
-	print "I need LWP::Simple, install libwww-perl\n";
-	print "(I'll also need postfix and mysql-server, so you might want to check those now, too)\n";
-	exit 1;
-}
 
-#### Postfixadmin-specific config  # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
+#### Postfixadmin-specific config  # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
-my $postfixadminURL = "https://netcologne.dl.sourceforge.net/project/postfixadmin/postfixadmin/postfixadmin-3.0.2/postfixadmin-3.0.2.tar.gz";
-my $postfixadminURL = 'https://downloads.sourceforge.net/project/postfixadmin/postfixadmin/postfixadmin-3.1/postfixadmin-3.1.tar.gz';
+my $postfixadminURL = "https://downloads.sourceforge.net/project/postfixadmin/postfixadmin/postfixadmin-${postfixadmin_ver}/postfixadmin-${postfixadmin_ver}.tar.gz";
 
 my ($postfixadminPasswordPlain, $postfixadminPasswordHash) = postfixadminCreatePassword();
 
@@ -278,9 +287,9 @@ sub printEndInstructions{
 	print "\n\nHave Fun!\n\n";
 }
 
-#### Postfix-specific config # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
+#### Postfix-specific config # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
-# We need to create a series of files in /etc/postfix (or $postfixDir) for Postfix to use 
+# We need to create a series of files in /etc/postfix (or $postfixDir) for Postfix to use
 # to get the MySQL credentials, and to find what queires to run to work out what to do with
 # mail addressed to any given address. The credentials need to be the same in all, so this will be
 # put at the top of each:
@@ -296,16 +305,16 @@ EOF
 # For the vacation script to work, Postfix uses a transport maps file. This is it:
 my $postfixTransportMapsFile = "/etc/postfix/transport";
 
-# This is a hash of the files we create in /etc/postfix (or $postfixDir). The key is the 
-# filename and the value is the query line. The resulting files are a concatenation of the 
+# This is a hash of the files we create in /etc/postfix (or $postfixDir). The key is the
+# filename and the value is the query line. The resulting files are a concatenation of the
 # output of postfixCredentials() above and the relevant value from here.
 my %postfixFiles = (
-	'mysql_virtual_alias_domain_catchall_maps'	=>  'query = SELECT goto FROM alias,alias_domain WHERE alias_domain.alias_domain = \'%d\' and alias.address = CONCAT(\'@\', alias_domain.target_domain) AND alias.active = 1 AND alias_domain.active=\'1\'',
-	'mysql_virtual_alias_domain_mailbox_maps'	=>  'query = SELECT maildir FROM mailbox,alias_domain WHERE alias_domain.alias_domain = \'%d\' and mailbox.username = CONCAT(\'%u\', \'@\', alias_domain.target_domain) AND mailbox.active = 1 AND alias_domain.active=\'1\'',
-	'mysql_virtual_alias_domain_maps'		=>  'query = SELECT goto FROM alias,alias_domain WHERE alias_domain.alias_domain = \'%d\' and alias.address = CONCAT(\'%u\', \'@\', alias_domain.target_domain) AND alias.active = 1 AND alias_domain.active=\'1\'',
-	'mysql_virtual_alias_maps'			=>  'query = SELECT goto FROM alias WHERE address=\'%s\' AND active = \'1\'',
-	'mysql_virtual_domains_maps'			=>  'query = SELECT domain FROM domain WHERE domain=\'%s\' AND active = \'1\'',
-	'mysql_virtual_mailbox_maps'			=>  'query = SELECT maildir FROM mailbox WHERE username=\'%s\' AND active = \'1\'',
+	'mysql_virtual_alias_domain_catchall_maps' =>  'query = SELECT goto FROM alias,alias_domain WHERE alias_domain.alias_domain = \'%d\' and alias.address = CONCAT(\'@\', alias_domain.target_domain) AND alias.active = 1 AND alias_domain.active=\'1\'',
+	'mysql_virtual_alias_domain_mailbox_maps' =>  'query = SELECT maildir FROM mailbox,alias_domain WHERE alias_domain.alias_domain = \'%d\' and mailbox.username = CONCAT(\'%u\', \'@\', alias_domain.target_domain) AND mailbox.active = 1 AND alias_domain.active=\'1\'',
+	'mysql_virtual_alias_domain_maps' =>  'query = SELECT goto FROM alias,alias_domain WHERE alias_domain.alias_domain = \'%d\' and alias.address = CONCAT(\'%u\', \'@\', alias_domain.target_domain) AND alias.active = 1 AND alias_domain.active=\'1\'',
+	'mysql_virtual_domains_maps' =>  'query = SELECT domain FROM domain WHERE domain=\'%s\' AND active = \'1\'',
+	'mysql_virtual_mailbox_maps' =>  'query = SELECT maildir FROM mailbox WHERE username=\'%s\' AND active = \'1\'',
+	'mysql_virtual_alias_maps' =>  'query = SELECT goto FROM alias WHERE address=\'%s\' AND active = \'1\'',
 );
 
 # These are the config bits that need to be appended to postfix's main.cf. Handily, postfix
@@ -316,7 +325,7 @@ sub mainDotCf(){
 	my $gid = shift;
 	return <<EOF;
 
-# # # Begin insertion by postfixdovecotmysql script $date # # # 
+# # # Begin insertion by postfixdovecotmysql script $date # # #
 
 # TLS parameters
 smtpd_tls_cert_file=/etc/ssl/certs/ssl-cert-snakeoil.pem
@@ -345,18 +354,18 @@ smtpd_sasl_path = private/auth
 broken_sasl_auth_clients = yes
 smtpd_sasl_auth_enable = yes
 smtpd_sasl_local_domain =
-smtpd_recipient_restrictions = permit_mynetworks, 
-				permit_sasl_authenticated,
-				reject_rbl_client zen.spamhaus.org,
-				reject_rbl_client bl.spamcop.net,
-				reject_unauth_destination 
+smtpd_recipient_restrictions = permit_mynetworks,
+                               permit_sasl_authenticated,
+                               reject_rbl_client zen.spamhaus.org,
+                               reject_rbl_client bl.spamcop.net,
+                               reject_unauth_destination
 
-# # # End insertion by postfixdovecotmysql script $date # # # 
+# # # End insertion by postfixdovecotmysql script $date # # #
 
 EOF
 }
 
-# This needs to appear in the list at the bottom of master.cf. Again, postfix is happy to 
+# This needs to appear in the list at the bottom of master.cf. Again, postfix is happy to
 # have a few of these, but the first wins. This goes at the end to not tread on anybody
 # else's toes (and because that's the easiest place to put it).
 sub masterDotCf() {
@@ -366,24 +375,25 @@ dovecot   unix  -       n       n       -       -       pipe
 EOF
 }
 
-#### Dovecot-specific config # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
+#### Dovecot-specific config # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
 # Dovecot can use a separate file for MySQL permissions, which is generally recommended. This
 # is that file:
 sub dovecotDotSql() {
 	my $uid = shift;
+	my $gid = shift;
 	return <<EOF;
 connect = host=$dbhost dbname=$dbname user=$dbuser password=$dbpass
 driver = mysql
 default_pass_scheme = MD5-CRYPT
 password_query = SELECT username AS user,password FROM mailbox WHERE username = '%u' AND active='1'
-user_query = SELECT concat('/var/lib/vmail/', maildir) as home, 999 AS uid, 122 AS gid FROM mailbox WHERE username = '%u' and active='1'
+user_query = SELECT concat('/var/lib/vmail/', maildir) as home, $uid AS uid, $gid AS gid FROM mailbox WHERE username = '%u' and active='1'
 
 EOF
 }
 
-# Dovecot.conf ships with hundreds of comments which are probably useful, and it's not hard to 
-# script the right config changes into it, but it *is* hard for a human to use. So we do away 
+# Dovecot.conf ships with hundreds of comments which are probably useful, and it's not hard to
+# script the right config changes into it, but it *is* hard for a human to use. So we do away
 # with that and drop our own in. It's all backed up anyway.
 sub dovecotDotConf(){
 	my $uid = shift;
@@ -392,7 +402,7 @@ protocols = imap pop3
 log_timestamp = "%Y-%m-%d %H:%M:%S "
 mail_location = maildir:~
 mail_privileged_group = $unixUser
-# This should match that of the owner of the $mailboxDir hierarchy, and 
+# This should match that of the owner of the $mailboxDir hierarchy, and
 # be the same as the one postfix uses.
 first_valid_uid = $uid
 # Allow people to use plaintext auth even when TLS/SSL is available (you
@@ -435,14 +445,14 @@ EOF
 
 
 
-### SASL-specific config # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
+### SASL-specific config # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
 # SASL is necessary for having Postfix talk to Dovecot to validate credentials it's passed
 # for SMTP auth. It's pretty simple to configure, just changing two lines in its defaults
 # file
 # This sub's unique in that it does the backing up itself, since it parses the backup
 # into the new real file.
-sub sasl(){ 
+sub sasl(){
 	my $in;
 	my $out;
 	eval {open($in, "<", $saslauthdBackupFile) or die()};
@@ -461,27 +471,22 @@ sub sasl(){
 			$line = "START=yes\n";
 		}
 		if(/^OPTIONS/){
-#			$line = "OPTIONS=\"-c -m /var/spool/postfix/var/run/saslauthd\""
 			$line = "OPTIONS=\"-c -m /var/run/saslauthd\"";
 		}
 		print $out $line;
 	}
-	close($out); 
+	close($out);
 	close($in);
 	return 1;
 }
 
 
-### # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
-
-### Here ends the config  # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
-
-### # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
+### # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+### Here ends the config  # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+### # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
 # This is code all the way down, now. You shouldn't need or want to change any of this (and, if
 # you do, please tell me so I can fix/amend it here, too!)
-
-
 
 # Herein, the first 'print' of any stanza should serve as a reasonable comment on what it's doing
 print "Guessing MySQL credentials...";
@@ -519,7 +524,7 @@ unless($overwrite > 0){
 }
 
 
-start("Installing packages (this can take a few minutes)\n");
+start("Installing packages (this can take a few minutes)...");
 my $cmd = "apt-get -qy install $packages";
 if(run($cmd) != 0){
 	fail($packages);
@@ -529,25 +534,25 @@ if(run($cmd) != 0){
 }
 
 
-#start("Testing for Mail::Sender (for the vacation package)");
-#my $mailSenderVersion;
-#eval{
-#	require Mail::Sender;
-#	$mailSenderVersion = $Mail::Sender::VERSION;
-#};
-#if($@){
-#	start("Not found\nInstalling Mail::Sender");
-#	_log("Downloading '$libmailsender' to '$libmailsender_tmpfilename'");
-#	getstore($libmailsender, $libmailsender_tmpfilename);
-#	my $cmd = "dpkg -i $libmailsender_tmpfilename >> $f_log";
-#	if(run($cmd) == 0){
-#		succeed();
-#	}else{
-#		fail();
-#	}
-#}else{
-#	succeed("Version $Mail::Sender::VERSION");
-#}
+start("Testing for Mail::Sender (for the vacation package)");
+my $mailSenderVersion;
+eval{
+	require Mail::Sender;
+	$mailSenderVersion = $Mail::Sender::VERSION;
+};
+if($@){
+	start("Not found\nInstalling Mail::Sender");
+	_log("Downloading '$libmailsender' to '$libmailsender_tmpfilename'");
+	getstore($libmailsender, $libmailsender_tmpfilename);
+	my $cmd = "dpkg -i $libmailsender_tmpfilename >> $f_log";
+	if(run($cmd) == 0){
+		succeed();
+	}else{
+		fail();
+	}
+}else{
+	succeed("Version $Mail::Sender::VERSION");
+}
 
 start("Creating user $unixUser in group $unixUser");
 my($uid,$gid);
@@ -555,7 +560,7 @@ if ( getpwnam($unixUser) =~ /(\d+)/){
 	$uid = $1;
 	if(getgrnam($unixUser) =~ /(\d+)/){
 		$gid = $1;
-		_print ("skipping; $unixUser:$unixUser already exist\n");
+		_print ("skipping; $unixUser:$unixUser already exist \n");
 	}else{
 		foreach("groupadd $unixUser", "usermod -a -G $unixUser $unixUser"){
 			run($cmd);
@@ -563,7 +568,7 @@ if ( getpwnam($unixUser) =~ /(\d+)/){
 	}
 	succeed();
 }else{
-	my $cmd = "useradd -r -d $mailboxDir -s /sbin/nologin -c \"Virtual mailbox\" $unixUser";
+	my $cmd = "/usr/sbin/useradd -r -d $mailboxDir -s /sbin/nologin -c \"Virtual mailbox\" $unixUser";
 	if(run($cmd) != 0){
 		fail("useradd exited non-zero");
 	}else{
@@ -575,7 +580,7 @@ if ( getpwnam($unixUser) =~ /(\d+)/){
 }
 
 start("Creating user $vacationUser");
-my $cmd = "useradd -r -U -d $vacationSpool -m -s /sbin/nologin $vacationUser";
+my $cmd = "/usr/sbin/useradd -r -U -d $vacationSpool -m -s /sbin/nologin $vacationUser";
 if(run($cmd) != 0){
 	fail("Useradd exited non-zero");
 }else{
@@ -584,7 +589,7 @@ if(run($cmd) != 0){
 
 runTest("mkdir -m 770 -p $mailboxDir", "creating mailbox dir '$mailboxDir' with mode 770");
 runTest("chmod a+w /var", "Setting /var world-writeable for Dovecot");
-runTest("chown -R $unixUser:$unixUser $mailboxDir", "Setting owner of $mailboxDir to $unixUser:$unixUser");
+runTest("chown $unixUser:$unixUser $mailboxDir -R", "Setting owner of $mailboxDir to $unixUser:$unixUser");
 
 
 # Creating postfix MySQL files:
@@ -638,13 +643,13 @@ if($write == 1){
 	if ($@){
 		fail($@);
 	}else{
-		print $f &dovecotDotSql($uid);
+		print $f &dovecotDotSql($uid, $gid);
 		close($f);
 		run("chown root:root $dovecotSqlFile");
 		run("chmod 600 $dovecotSqlFile");
 		succeed();
 	}
-}else{ 
+}else{
 	print " skipping";
 }
 
@@ -668,7 +673,7 @@ if ($write == 1){
 
 # main.cf
 start("Checking for config in main.cf");
-my @lines; 
+my @lines;
 my $lastrun;
 my $skipMainDotCf = 0;
 eval{
@@ -985,22 +990,22 @@ exit 0;
 
 # Basically a clone of the related functions from pfa:
 sub postfixadminCreatePassword {
-        my $salt =  time(). '*' . rand(6000);
-        my $password = createPassword(14);
+my $salt =  time(). '*' . rand(6000);
+my $password = createPassword(14);
 	$password.='25'; #to get round the 'must have two digits' default restriction
-        my $encryptedPassword = $salt.':'.sha1_hex($salt.':'.$password);
-        return $password, $encryptedPassword;
+my $encryptedPassword = $salt.':'.sha1_hex($salt.':'.$password);
+return $password, $encryptedPassword;
 }
 
 # Generates a simple password:
 sub createPassword {
-        my $length = shift;
-        my @chars = ("A".."Z", "a".."z", 1..9);
-        my $password;
-        for (my $i = 0; $i < $length; $i++){
-                $password.= $chars[rand($#chars - 1)];
-        }  
-        return $password;
+my $length = shift;
+my @chars = ("A".."Z", "a".."z", 1..9);
+my $password;
+for (my $i = 0; $i < $length; $i++){
+	$password.= $chars[rand($#chars - 1)];
+}
+return $password;
 }
 
 
