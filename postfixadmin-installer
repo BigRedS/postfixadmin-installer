@@ -295,6 +295,8 @@ sub printEndInstructions{
 # put at the top of each:
 sub postfixCredentials() {
 	return <<EOF;
+# # # Begin insertion by postfixadmin-installer script $date # # #
+# # # See https://github.com/BigRedS/postfixadmin-installer  # # #
 user = $pfa_dbuser
 password = $pfa_dbpass
 hosts = $pfa_dbhost
@@ -324,8 +326,8 @@ sub mainDotCf(){
 	my $uid = shift;
 	my $gid = shift;
 	return <<EOF;
-
-# # # Begin insertion by postfixdovecotmysql script $date # # #
+# # # Begin insertion by postfixadmin-installer script $date # # #
+# # # See https://github.com/BigRedS/postfixadmin-installer  # # #
 
 # TLS parameters
 smtpd_tls_cert_file=/etc/ssl/certs/ssl-cert-snakeoil.pem
@@ -360,7 +362,7 @@ smtpd_recipient_restrictions = permit_mynetworks,
                                reject_rbl_client bl.spamcop.net,
                                reject_unauth_destination
 
-# # # End insertion by postfixdovecotmysql script $date # # #
+# # # End insertion by postfixadmin-installer script $date # # #
 
 EOF
 }
@@ -370,6 +372,8 @@ EOF
 # else's toes (and because that's the easiest place to put it).
 sub masterDotCf() {
 	return <<EOF;
+# # # Begin insertion by postfixadmin-installer script $date # # #
+# # # See https://github.com/BigRedS/postfixadmin-installer  # # #
 dovecot   unix  -       n       n       -       -       pipe
   flags=DRhu user=$unixUser:$unixUser argv=/usr/libexec/dovecot/deliver -d \${recipient}
 EOF
@@ -383,6 +387,8 @@ sub dovecotDotSql() {
 	my $uid = shift;
 	my $gid = shift;
 	return <<EOF;
+# # # Begin insertion by postfixadmin-installer script $date # # #
+# # # See https://github.com/BigRedS/postfixadmin-installer  # # #
 connect = host=$pfa_dbhost dbname=$pfa_dbname user=$pfa_dbuser password=$pfa_dbpass
 driver = mysql
 default_pass_scheme = MD5-CRYPT
@@ -398,6 +404,8 @@ EOF
 sub dovecotDotConf(){
 	my $uid = shift;
 	return <<EOF;
+# # # Begin insertion by postfixadmin-installer script $date # # #
+# # # See https://github.com/BigRedS/postfixadmin-installer  # # #
 protocols = imap pop3
 log_timestamp = "%Y-%m-%d %H:%M:%S "
 mail_location = maildir:~
@@ -679,7 +687,7 @@ my $skipMainDotCf = 0;
 eval{
 	open(my $f, "<", $postfixMainDotCfFile) or die();
 	my @file = <$f>;
-	@lines = grep(/insertion by postfixdovecotmysql script (\d\d\d\d-\d\d-\d\d) \#/ , @file);
+	@lines = grep(/insertion by postfixadmin-installer script (\d\d\d\d-\d\d-\d\d) \#/ , @file);
 	$lastrun = $1;
 };
 if($@){
