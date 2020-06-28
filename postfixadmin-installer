@@ -50,7 +50,7 @@ my $postfixadminDir = "/var/www/html/postfixadmin";
 my $postfixadmin_ver = '3.2';
 
 # Config starts here
-our $VERSION = "0.20200628 (Buster; PFA ${pfa_ver})";
+our $VERSION = "0.20200628 (Buster; PFA ${postfixadmin_ver})";
 
 my $f_log = '/tmp/postfixadmin-installer.log';
 my $writeLog = 1;
